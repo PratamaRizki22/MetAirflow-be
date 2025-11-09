@@ -12,7 +12,13 @@
   },
   "rules": {
     "prettier/prettier": "error",
-    "no-unused-vars": "warn",
+    "no-unused-vars": [
+    "warn",
+    { 
+      "varsIgnorePattern": "^_",
+      "argsIgnorePattern": "^_"
+    }
+  ],
     "no-console": "off",
     "func-names": "off",
     "no-process-exit": "off",

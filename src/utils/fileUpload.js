@@ -1,5 +1,4 @@
 const {
-  cloudinaryClient,
   cloudinary,
   CLOUD_FOLDER_PREFIX,
   isCloudinaryConfigured,
@@ -59,7 +58,7 @@ class FileUploadService {
   /**
    * Generate unique public ID (simplified and compact)
    */
-  generatePublicId(originalName) {
+  generatePublicId(_originalName) {
     // Create timestamp in YYYYMMDDHHMMSS format
     const now = new Date();
     const timestamp = now
@@ -132,7 +131,7 @@ class FileUploadService {
   /**
    * Upload file to Cloudinary
    */
-  async uploadFile(file, optimize = true) {
+  async uploadFile(file, _optimize = true) {
     try {
       // Check if Cloudinary is configured
       this.checkCloudinaryConfig();

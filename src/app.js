@@ -137,7 +137,7 @@ app.use(
   '/api/files/pdfs',
   express.static(path.join(__dirname, '../uploads/pdfs'), {
     // Only allow PDF files
-    setHeaders: (res, path, stat) => {
+    setHeaders: (res, path, _stat) => {
       if (path.endsWith('.pdf')) {
         res.set('Content-Type', 'application/pdf');
         res.set('Content-Disposition', 'inline'); // Display in browser instead of download
