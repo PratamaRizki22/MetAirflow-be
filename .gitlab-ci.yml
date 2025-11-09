@@ -1,0 +1,36 @@
+include:
+  - template: SAST.gitlab-ci.yml
+  - template: Secret-Detection.gitlab-ci.yml
+
+image: node:20
+
+stages:
+  - install
+  - validate
+  - test
+
+cache:
+  key:
+    files:
+      - package-lock.json
+  paths:
+    - node_modules/
+  policy: pull-push
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+    - if: $CI_COMMIT_BRANCH == 'main' || $CI_COMMIT_BRANCH == 'staging'
+    - if: $CI_PIPELINE_SOURCE == 'web'
+
+install_dependencies:
+  stage: install
+  script:
+    - npm ci
+
+validate_code:
+  stage: validate
+  needs: [install_dependencies]
+  script:
+    - npm run lint
+    - npx prisma generate
