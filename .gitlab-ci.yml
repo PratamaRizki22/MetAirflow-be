@@ -36,4 +36,4 @@ validate_code:
   script:
     - npm install -g pnpm
     - pnpm run lint
-    - pnpm dlx prisma generate
+    - pnpm run db:generate
