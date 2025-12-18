@@ -2,7 +2,8 @@
   "env": {
     "browser": false,
     "es2021": true,
-    "node": true
+    "node": true,
+    "jest": true
   },
   "extends": ["eslint:recommended", "prettier"],
   "plugins": ["prettier"],
@@ -18,5 +19,13 @@
     "no-process-exit": "off",
     "object-shorthand": "off",
     "class-methods-use-this": "off"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.js", "**/*.spec.js", "**/tests/**/*.js"],
+      "env": {
+        "jest": true
+      }
+    }
+  ]
 }

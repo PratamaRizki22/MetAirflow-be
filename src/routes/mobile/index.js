@@ -54,13 +54,13 @@ router.get('/', (req, res) => {
     version: '1.0.0',
     docs: 'Visit /m/docs for Mobile API documentation',
     endpoints: {
-      auth: '/api/m/auth',
-      users: '/api/m/users',
-      properties: '/api/m/properties',
-      bookings: '/api/m/bookings',
-      propertyTypes: '/api/m/property-types',
-      amenities: '/api/m/amenities',
-      upload: '/api/m/upload',
+      auth: '/api/v1/m/auth',
+      users: '/api/v1/m/users',
+      properties: '/api/v1/m/properties',
+      bookings: '/api/v1/m/bookings',
+      propertyTypes: '/api/v1/m/property-types',
+      amenities: '/api/v1/m/amenities',
+      upload: '/api/v1/m/upload',
     },
   });
 });

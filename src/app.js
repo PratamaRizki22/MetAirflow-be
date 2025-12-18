@@ -6,8 +6,13 @@ const morgan = require('morgan');
 const swaggerUi = require('swagger-ui-express');
 
 const { connectDB } = require('./config/database');
-const swaggerSpecs = require('./config/swagger');
-const swaggerMobileSpecs = require('./config/swagger-mobile');
+
+// Only load Swagger in non-test environments to avoid YAML parsing issues
+const swaggerSpecs =
+  process.env.NODE_ENV !== 'test' ? require('./config/swagger') : null;
+const swaggerMobileSpecs =
+  process.env.NODE_ENV !== 'test' ? require('./config/swagger-mobile') : null;
+
 const sessionMiddleware = require('./middleware/session');
 
 const app = express();
@@ -152,83 +157,87 @@ app.use(
   })
 );
 
-// Swagger UI setup for Web
-app.use(
-  '/docs',
-  swaggerUi.serve,
-  swaggerUi.setup(swaggerSpecs, {
-    explorer: true,
-    customCss: `
-      .swagger-ui .topbar { display: none }
-      .swagger-ui .info .title { color: #1976d2 }
-      .server-info { 
-        background: #e3f2fd; 
-        padding: 10px; 
-        border-radius: 5px; 
-        margin: 10px 0;
-        border-left: 4px solid #1976d2;
-      }
-    `,
-    customSiteTitle: 'Rentverse API Documentation',
-    customfavIcon: '/favicon.ico',
-    swaggerOptions: {
-      persistAuthorization: true,
-      servers: [
-        {
-          url:
-            process.env.NGROK_URL ||
-            `http://localhost:${process.env.PORT || 3005}`,
-          description: process.env.NGROK_URL
-            ? `🌐 Ngrok Tunnel: ${process.env.NGROK_URL}`
-            : `🏠 Local Server: http://localhost:${process.env.PORT || 3005}`,
-        },
-        {
-          url: `http://localhost:${process.env.PORT || 3005}`,
-          description: '🏠 Local Development Server',
-        },
-      ],
-    },
-  })
-);
+// Swagger UI setup for Web (skip in test environment)
+if (process.env.NODE_ENV !== 'test' && swaggerSpecs) {
+  app.use(
+    '/docs',
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpecs, {
+      explorer: true,
+      customCss: `
+        .swagger-ui .topbar { display: none }
+        .swagger-ui .info .title { color: #1976d2 }
+        .server-info { 
+          background: #e3f2fd; 
+          padding: 10px; 
+          border-radius: 5px; 
+          margin: 10px 0;
+          border-left: 4px solid #1976d2;
+        }
+      `,
+      customSiteTitle: 'Rentverse API Documentation',
+      customfavIcon: '/favicon.ico',
+      swaggerOptions: {
+        persistAuthorization: true,
+        servers: [
+          {
+            url:
+              process.env.NGROK_URL ||
+              `http://localhost:${process.env.PORT || 3005}`,
+            description: process.env.NGROK_URL
+              ? `🌐 Ngrok Tunnel: ${process.env.NGROK_URL}`
+              : `🏠 Local Server: http://localhost:${process.env.PORT || 3005}`,
+          },
+          {
+            url: `http://localhost:${process.env.PORT || 3005}`,
+            description: '🏠 Local Development Server',
+          },
+        ],
+      },
+    })
+  );
+}
 
-// Swagger UI setup for Mobile
-app.use(
-  '/m/docs',
-  swaggerUi.serve,
-  swaggerUi.setup(swaggerMobileSpecs, {
-    explorer: true,
-    customCss: `
-      .swagger-ui .topbar { display: none }
-      .swagger-ui .info .title { color: #4caf50 }
-      .server-info { 
-        background: #e8f5e9; 
-        padding: 10px; 
-        border-radius: 5px; 
-        margin: 10px 0;
-        border-left: 4px solid #4caf50;
-      }
-    `,
-    customSiteTitle: 'Rentverse Mobile API Documentation',
-    customfavIcon: '/favicon.ico',
-    swaggerOptions: {
-      persistAuthorization: true,
-      servers: [
-        {
-          url:
-            process.env.NGROK_URL ||
-            `http://localhost:${process.env.PORT || 3005}`,
-          description: process.env.NGROK_URL
-            ? `🌐 Ngrok Tunnel: ${process.env.NGROK_URL}`
-            : `🏠 Local Server: http://localhost:${process.env.PORT || 3005}`,
-        },
-        {
-          url: `http://localhost:${process.env.PORT || 3005}`,
-          description: '🏠 Local Development Server',
-        },
-      ],
-    },
-  })
-);
+// Swagger UI setup for Mobile (skip in test environment)
+if (process.env.NODE_ENV !== 'test' && swaggerMobileSpecs) {
+  app.use(
+    '/m/docs',
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerMobileSpecs, {
+      explorer: true,
+      customCss: `
+        .swagger-ui .topbar { display: none }
+        .swagger-ui .info .title { color: #4caf50 }
+        .server-info { 
+          background: #e8f5e9; 
+          padding: 10px; 
+          border-radius: 5px; 
+          margin: 10px 0;
+          border-left: 4px solid #4caf50;
+        }
+      `,
+      customSiteTitle: 'Rentverse Mobile API Documentation',
+      customfavIcon: '/favicon.ico',
+      swaggerOptions: {
+        persistAuthorization: true,
+        servers: [
+          {
+            url:
+              process.env.NGROK_URL ||
+              `http://localhost:${process.env.PORT || 3005}`,
+            description: process.env.NGROK_URL
+              ? `🌐 Ngrok Tunnel: ${process.env.NGROK_URL}`
+              : `🏠 Local Server: http://localhost:${process.env.PORT || 3005}`,
+          },
+          {
+            url: `http://localhost:${process.env.PORT || 3005}`,
+            description: '🏠 Local Development Server',
+          },
+        ],
+      },
+    })
+  );
+}
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -243,18 +252,18 @@ const predictionRoutes = require('./modules/predictions/predictions.routes');
 // Import mobile routes
 const mobileRoutes = require('./routes/mobile');
 
-// Use routes (Web)
-app.use('/api/auth', authRoutes);
-app.use('/api/upload', uploadRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/properties', propertyRoutes);
-app.use('/api/bookings', bookingRoutes);
-app.use('/api/property-types', propertyTypeRoutes);
-app.use('/api/amenities', amenityRoutes);
-app.use('/api/predictions', predictionRoutes);
+// Use routes (Web) - API v1
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/upload', uploadRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/properties', propertyRoutes);
+app.use('/api/v1/bookings', bookingRoutes);
+app.use('/api/v1/property-types', propertyTypeRoutes);
+app.use('/api/v1/amenities', amenityRoutes);
+app.use('/api/v1/predictions', predictionRoutes);
 
-// Use routes (Mobile)
-app.use('/api/m', mobileRoutes);
+// Use routes (Mobile) - API v1
+app.use('/api/v1/m', mobileRoutes);
 
 /**
  * @swagger
