@@ -74,18 +74,7 @@ deploy_production:
     - ssh-keyscan -p ${SSH_PORT:-22} $SSH_HOST >> ~/.ssh/known_hosts
   script:
     # Deploy files to server (exclude .env to preserve server config)
-    - rsync -avz --delete
-      --exclude='.git/'
-      --exclude='node_modules/'
-      --exclude='.env'
-      --exclude='uploads/'
-      --exclude='.gitlab-ci.yml'
-      --exclude='README.md'
-      ./ $SSH_USER@$SSH_HOST:~/apps/rentverse-backend/
+    - rsync -avz --delete --exclude='.git/' --exclude='node_modules/' --exclude='.env' --exclude='uploads/' --exclude='.gitlab-ci.yml' ./ $SSH_USER@$SSH_HOST:~/apps/rentverse-backend/
 
     # Run docker compose on server
-    - ssh $SSH_USER@$SSH_HOST "
-      cd ~/apps/rentverse-backend &&
-      docker compose down &&
-      docker compose up -d --build
-      "
+    - ssh $SSH_USER@$SSH_HOST "cd ~/apps/rentverse-backend && docker compose down && docker compose up -d --build"
