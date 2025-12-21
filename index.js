@@ -35,6 +35,6 @@ app.listen(PORT, () => {
   console.log(`🏥   http://localhost:${PORT}/health`);
   console.log('');
   console.log('🔗 API Base URL:');
-  console.log(`🔗   http://localhost:${PORT}/api`);
+  console.log(`🔗   http://localhost:${PORT}/api/v1`);
   console.log('');
 });

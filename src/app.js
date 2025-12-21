@@ -138,23 +138,8 @@ app.use(sessionMiddleware);
 // Static files
 app.use(express.static('public'));
 
-// Serve uploaded PDFs from uploads directory with proper security
-const path = require('path');
-app.use(
-  '/api/files/pdfs',
-  express.static(path.join(__dirname, '../uploads/pdfs'), {
-    // Only allow PDF files
-    setHeaders: (res, path, _stat) => {
-      if (path.endsWith('.pdf')) {
-        res.set('Content-Type', 'application/pdf');
-        res.set('Content-Disposition', 'inline'); // Display in browser instead of download
-        res.set('Cache-Control', 'public, max-age=31536000'); // 1 year cache
-      } else {
-        res.status(404).end(); // Block non-PDF files
-      }
-    },
-  })
-);
+// Note: File uploads are now handled via S3 storage (configured in .env)
+// Files are served directly from S3, no local static file serving needed
 
 // Swagger UI setup (skip in test environment)
 const swaggerUi =
