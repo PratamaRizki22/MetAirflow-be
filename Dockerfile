@@ -33,9 +33,8 @@ COPY --chown=expressjs:nodejs src ./src
 COPY --chown=expressjs:nodejs index.js ./
 COPY --chown=expressjs:nodejs templates ./templates
 
-# Create uploads directory (for local development, prod uses S3)
-RUN mkdir -p /app/uploads && \
-    chown -R expressjs:nodejs /app
+# Set ownership for application files
+RUN chown -R expressjs:nodejs /app
 
 # Switch to non-root user
 USER expressjs

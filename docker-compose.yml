@@ -20,8 +20,6 @@ services:
 
     # Volumes for persistent data
     volumes:
-      # Uploads directory
-      - uploads_data:/app/uploads
       # Prisma migrations persistence (optional)
       - ./prisma:/app/prisma:ro
 
@@ -110,11 +108,6 @@ networks:
 
 # Volumes
 volumes:
-  # Application uploads
-  uploads_data:
-    name: rentverse_uploads
-    driver: local
-
   # Caddy data (SSL certificates)
   caddy_data:
     name: rentverse_caddy_data

@@ -6,11 +6,15 @@ const morgan = require('morgan');
 
 const { connectDB } = require('./config/database');
 
-// Only load Swagger in non-test environments to avoid YAML parsing issues
+// Only load Swagger in development (not in test or production)
 const swaggerSpecs =
-  process.env.NODE_ENV !== 'test' ? require('./config/swagger') : null;
+  process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'production'
+    ? require('./config/swagger')
+    : null;
 const swaggerMobileSpecs =
-  process.env.NODE_ENV !== 'test' ? require('./config/swagger-mobile') : null;
+  process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'production'
+    ? require('./config/swagger-mobile')
+    : null;
 
 const sessionMiddleware = require('./middleware/session');
 

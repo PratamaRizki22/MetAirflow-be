@@ -1,35 +1,39 @@
 const {
-  cloudinary,
-  CLOUD_FOLDER_PREFIX,
-  isCloudinaryConfigured,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  DeleteObjectsCommand,
+} = require('@aws-sdk/client-s3');
+const { Upload } = require('@aws-sdk/lib-storage');
+const {
+  s3Client,
+  s3Bucket,
+  s3BaseUrl,
+  isS3Configured,
+  STORAGE_FOLDER_PREFIX,
 } = require('../config/storage');
 const { v4: uuidv4 } = require('uuid');
-const streamifier = require('streamifier');
+const path = require('path');
 
 class FileUploadService {
   constructor() {
     this.maxFileSize = parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024; // 10MB default
     this.allowedImageTypes = (
       process.env.ALLOWED_IMAGE_TYPES ||
-      'image/jpeg,image/jpg,image/png,image/webp,image/gif,image/bmp,image/svg+xml'
-    ).split(',');
-    this.allowedVideoTypes = (
-      process.env.ALLOWED_VIDEO_TYPES ||
-      'video/mp4,video/avi,video/mov,video/wmv,video/flv,video/webm'
+      'image/jpeg,image/jpg,image/png,image/webp'
     ).split(',');
     this.allowedFileTypes = (
       process.env.ALLOWED_FILE_TYPES ||
-      'image/jpeg,image/jpg,image/png,image/webp,image/gif,image/bmp,image/svg+xml,video/mp4,video/avi,video/mov,video/wmv,video/flv,video/webm,application/pdf'
+      'image/jpeg,image/jpg,image/png,image/webp,application/pdf'
     ).split(',');
   }
 
   /**
-   * Check if Cloudinary is configured
+   * Check if S3 is configured
    */
-  checkCloudinaryConfig() {
-    if (!isCloudinaryConfigured) {
+  checkS3Config() {
+    if (!isS3Configured) {
       throw new Error(
-        'Cloudinary storage is not configured. Please check your environment variables.'
+        'S3 storage is not configured. Please check your environment variables.'
       );
     }
   }
@@ -38,17 +42,18 @@ class FileUploadService {
    * Validate file type and size
    */
   validateFile(file, allowedTypes = null) {
-    const types = allowedTypes || this.allowedFileTypes;
+    if (!file) {
+      throw new Error('No file provided');
+    }
 
+    const types = allowedTypes || this.allowedFileTypes;
     if (!types.includes(file.mimetype)) {
-      throw new Error(
-        `File type ${file.mimetype} is not allowed. Allowed types: ${types.join(', ')}`
-      );
+      throw new Error(`Invalid file type. Allowed types: ${types.join(', ')}`);
     }
 
     if (file.size > this.maxFileSize) {
       throw new Error(
-        `File size ${file.size} exceeds maximum allowed size ${this.maxFileSize} bytes`
+        `File size exceeds maximum allowed size of ${this.maxFileSize / 1024 / 1024}MB`
       );
     }
 
@@ -56,290 +61,173 @@ class FileUploadService {
   }
 
   /**
-   * Generate unique public ID (simplified and compact)
+   * Generate S3 key (object path)
    */
-  generatePublicId(_originalName) {
-    // Create timestamp in YYYYMMDDHHMMSS format
-    const now = new Date();
-    const timestamp = now
-      .toISOString()
-      .replace(/[-T:.Z]/g, '')
-      .slice(0, 14);
+  generateS3Key(originalName, folder = 'uploads') {
+    const ext = path.extname(originalName);
+    const uniqueId = uuidv4();
+    const timestamp = Date.now();
+    const filename = `${uniqueId}-${timestamp}${ext}`;
 
-    // Generate short UUID (first 8 characters)
-    const shortId = uuidv4().split('-')[0];
-
-    // Create compact public ID: rentverse_YYYYMMDDHHMMSS_shortId
-    return `${CLOUD_FOLDER_PREFIX}_${timestamp}_${shortId}`;
+    return `${STORAGE_FOLDER_PREFIX}/${folder}/${filename}`;
   }
 
   /**
-   * Get upload options based on file type
+   * Upload file to S3/MinIO
    */
-  getUploadOptions(file, publicId) {
-    const baseOptions = {
-      public_id: publicId,
-      use_filename: false,
-      unique_filename: false,
-      overwrite: true,
-      quality: 'auto:good',
-    };
-
-    // Image upload options with WebP conversion
-    if (this.allowedImageTypes.includes(file.mimetype)) {
-      return {
-        ...baseOptions,
-        resource_type: 'image',
-        format: 'webp', // Auto convert to WebP
-        transformation: [
-          {
-            quality: 'auto:good',
-            fetch_format: 'auto',
-            width: 1920,
-            height: 1080,
-            crop: 'limit',
-          },
-        ],
-      };
-    }
-
-    // Video upload options with WebM conversion
-    if (this.allowedVideoTypes.includes(file.mimetype)) {
-      return {
-        ...baseOptions,
-        resource_type: 'video',
-        format: 'webm', // Auto convert to WebM
-        transformation: [
-          {
-            quality: 'auto:good',
-            width: 1920,
-            height: 1080,
-            crop: 'limit',
-            video_codec: 'vp9', // Use VP9 codec for WebM
-          },
-        ],
-      };
-    }
-
-    // Other files (PDF, etc.)
-    return {
-      ...baseOptions,
-      resource_type: 'raw',
-    };
-  }
-
-  /**
-   * Upload file to Cloudinary
-   */
-  async uploadFile(file, _optimize = true) {
+  async uploadFile(file, folder = 'uploads') {
     try {
-      // Check if Cloudinary is configured
-      this.checkCloudinaryConfig();
+      // Check S3 configuration
+      this.checkS3Config();
 
       // Validate file
-      this.validateFile(file, this.allowedFileTypes);
+      this.validateFile(file);
 
-      // Generate unique public ID
-      const publicId = this.generatePublicId(file.originalname);
+      // Generate S3 key
+      const key = this.generateS3Key(file.originalname, folder);
 
-      // Get upload options based on file type
-      const uploadOptions = this.getUploadOptions(file, publicId);
-
-      return new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          uploadOptions,
-          (error, result) => {
-            if (error) {
-              console.error('Cloudinary upload error:', error);
-              reject(error);
-              return;
-            }
-
-            // Return file info
-            resolve({
-              publicId: result.public_id,
-              fileName: result.public_id,
-              originalName: file.originalname,
-              mimeType: result.format
-                ? `${result.resource_type}/${result.format}`
-                : file.mimetype,
-              size: result.bytes,
-              url: result.secure_url,
-              width: result.width,
-              height: result.height,
-              format: result.format,
-              resourceType: result.resource_type,
-              etag: result.etag,
-            });
-          }
-        );
-
-        streamifier.createReadStream(file.buffer).pipe(uploadStream);
+      // Upload to S3 using AWS SDK v3
+      const upload = new Upload({
+        client: s3Client,
+        params: {
+          Bucket: s3Bucket,
+          Key: key,
+          Body: file.buffer,
+          ContentType: file.mimetype,
+          // Make files publicly readable (optional, adjust based on needs)
+          ACL: 'public-read',
+        },
       });
+
+      const result = await upload.done();
+
+      // Generate public URL
+      const url = `${s3BaseUrl}/${key}`;
+
+      console.log(`✅ File uploaded to S3: ${key}`);
+
+      return {
+        key,
+        url,
+        bucket: s3Bucket,
+        location: result.Location,
+        etag: result.ETag,
+        originalName: file.originalname,
+        size: file.size,
+        mimetype: file.mimetype,
+      };
     } catch (error) {
-      console.error('File upload error:', error);
-      throw error;
+      console.error('S3 upload error:', error);
+      throw new Error(`Failed to upload file: ${error.message}`);
     }
   }
 
   /**
    * Upload multiple files
    */
-  async uploadMultipleFiles(files, optimize = true) {
-    try {
-      const uploadPromises = files.map(file => this.uploadFile(file, optimize));
-      const results = await Promise.all(uploadPromises);
-      return results;
-    } catch (error) {
-      console.error('Multiple file upload error:', error);
-      throw error;
-    }
+  async uploadMultipleFiles(files, folder = 'uploads') {
+    const uploadPromises = files.map(file => this.uploadFile(file, folder));
+    return await Promise.all(uploadPromises);
   }
 
   /**
-   * Delete file from Cloudinary
+   * Delete file from S3/MinIO
    */
-  async deleteFile(publicId, resourceType = 'image') {
+  async deleteFile(key) {
     try {
-      this.checkCloudinaryConfig();
+      this.checkS3Config();
 
-      const result = await cloudinary.uploader.destroy(publicId, {
-        resource_type: resourceType,
+      const command = new DeleteObjectCommand({
+        Bucket: s3Bucket,
+        Key: key,
       });
 
-      if (result.result === 'ok') {
-        return { success: true, message: 'File deleted successfully' };
-      } else {
-        throw new Error(`Delete failed: ${result.result}`);
-      }
+      await s3Client.send(command);
+
+      console.log(`✅ File deleted from S3: ${key}`);
+
+      return {
+        success: true,
+        message: 'File deleted successfully',
+        key,
+      };
     } catch (error) {
-      console.error('File delete error:', error);
-      throw error;
+      console.error('S3 delete error:', error);
+      throw new Error(`Failed to delete file: ${error.message}`);
     }
   }
 
   /**
    * Delete multiple files
    */
-  async deleteMultipleFiles(publicIds) {
+  async deleteMultipleFiles(keys) {
     try {
-      this.checkCloudinaryConfig();
+      this.checkS3Config();
 
-      const result = await cloudinary.api.delete_resources(publicIds);
-
-      return { success: true, message: 'Files deleted successfully', result };
-    } catch (error) {
-      console.error('Multiple file delete error:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get file URL with transformations
-   */
-  getFileUrl(publicId, options = {}) {
-    if (!isCloudinaryConfigured) {
-      return null;
-    }
-
-    return cloudinary.url(publicId, {
-      secure: true,
-      ...options,
-    });
-  }
-
-  /**
-   * Create thumbnail for image
-   */
-  async createThumbnail(file) {
-    try {
-      this.checkCloudinaryConfig();
-
-      if (!this.allowedImageTypes.includes(file.mimetype)) {
-        throw new Error('File is not an image');
-      }
-
-      // Generate unique public ID for thumbnail with 'thumb' prefix
-      const now = new Date();
-      const timestamp = now
-        .toISOString()
-        .replace(/[-T:.Z]/g, '')
-        .slice(0, 14);
-      const shortId = uuidv4().split('-')[0];
-      const publicId = `${CLOUD_FOLDER_PREFIX}_thumb_${timestamp}_${shortId}`;
-
-      const uploadOptions = {
-        public_id: publicId,
-        resource_type: 'image',
-        format: 'webp',
-        transformation: [
-          {
-            width: 300,
-            height: 300,
-            crop: 'fill',
-            gravity: 'center',
-            quality: 'auto:good',
-          },
-        ],
-      };
-      return new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          uploadOptions,
-          (error, result) => {
-            if (error) {
-              console.error('Thumbnail creation error:', error);
-              reject(error);
-              return;
-            }
-
-            resolve({
-              publicId: result.public_id,
-              fileName: result.public_id,
-              url: result.secure_url,
-              size: result.bytes,
-              width: result.width,
-              height: result.height,
-              format: result.format,
-              etag: result.etag,
-            });
-          }
-        );
-
-        streamifier.createReadStream(file.buffer).pipe(uploadStream);
+      const command = new DeleteObjectsCommand({
+        Bucket: s3Bucket,
+        Delete: {
+          Objects: keys.map(key => ({ Key: key })),
+        },
       });
+
+      const result = await s3Client.send(command);
+
+      console.log(`✅ ${result.Deleted?.length || 0} files deleted from S3`);
+
+      return {
+        success: true,
+        deleted: result.Deleted || [],
+        errors: result.Errors || [],
+      };
     } catch (error) {
-      console.error('Thumbnail creation error:', error);
-      throw error;
+      console.error('S3 bulk delete error:', error);
+      throw new Error(`Failed to delete files: ${error.message}`);
     }
   }
 
   /**
-   * Get video thumbnail
+   * Get file URL
    */
-  async getVideoThumbnail(publicId, options = {}) {
+  getFileUrl(key) {
+    if (!key) return null;
+    return `${s3BaseUrl}/${key}`;
+  }
+
+  /**
+   * Upload PDF buffer to S3
+   */
+  async uploadPDFBuffer(pdfBuffer, fileName, folder = 'pdfs') {
     try {
-      this.checkCloudinaryConfig();
+      this.checkS3Config();
 
-      const thumbnailOptions = {
-        resource_type: 'video',
-        format: 'webp',
-        transformation: [
-          {
-            width: 300,
-            height: 300,
-            crop: 'fill',
-            gravity: 'center',
-            quality: 'auto:good',
-            start_offset: options.startOffset || '1s', // Get frame at 1 second
-          },
-        ],
-        ...options,
+      const key = this.generateS3Key(fileName, folder);
+
+      const command = new PutObjectCommand({
+        Bucket: s3Bucket,
+        Key: key,
+        Body: pdfBuffer,
+        ContentType: 'application/pdf',
+        ContentDisposition: 'inline',
+        ACL: 'public-read',
+      });
+
+      await s3Client.send(command);
+
+      const url = `${s3BaseUrl}/${key}`;
+
+      console.log(`✅ PDF uploaded to S3: ${key}`);
+
+      return {
+        key,
+        url,
+        bucket: s3Bucket,
+        originalName: fileName,
+        size: pdfBuffer.length,
       };
-
-      return this.getFileUrl(publicId, thumbnailOptions);
     } catch (error) {
-      console.error('Video thumbnail error:', error);
-      throw error;
+      console.error('S3 PDF upload error:', error);
+      throw new Error(`Failed to upload PDF: ${error.message}`);
     }
   }
 }
