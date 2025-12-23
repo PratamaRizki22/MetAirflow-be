@@ -14,12 +14,17 @@ services:
 
     # Additional environment variables
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - PORT=3000
+      - DATABASE_URL=postgresql://rentverse:rentverse@db:5432/rentverse?schema=public
+
+    # Ports
+    ports:
+      - "3000:3000"
 
     # Volumes for persistent data
     volumes:
-      # Prisma migrations persistence (optional)
+      # Prisma migrations persistence (search local)
       - ./prisma:/app/prisma:ro
 
     # Network
@@ -28,22 +33,22 @@ services:
 
     # Health check
     healthcheck:
-      test:
-        [
-          'CMD',
-          'node',
-          '-e',
-          "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
-        ]
+      test: [ 'CMD', 'node', '-e', "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
     # Depends on database migration
-    command: sh -c "node index.js"
+    # Using local prisma binary to avoid permission issues
+    # Using db push --accept-data-loss since migrations might be missing or conflicting in dev env
+    command: sh -c "./node_modules/.bin/prisma db push --accept-data-loss && node index.js"
 
-    # Resource limits (optional, adjust based on your needs)
+    depends_on:
+      db:
+        condition: service_healthy
+
+    # Resource limits
     deploy:
       resources:
         limits:
@@ -52,6 +57,25 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
+
+  # Database Service (PostGIS required)
+  db:
+    image: postgis/postgis:15-3.4-alpine
+    container_name: rentverse-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rentverse
+      POSTGRES_PASSWORD: rentverse
+      POSTGRES_DB: rentverse
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - rentverse-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U rentverse" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Caddy Reverse Proxy
   caddy:
@@ -85,15 +109,7 @@ services:
 
     # Health check
     healthcheck:
-      test:
-        [
-          'CMD',
-          'wget',
-          '--no-verbose',
-          '--tries=1',
-          '--spider',
-          'http://localhost/health',
-        ]
+      test: [ 'CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost/health' ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -115,4 +131,9 @@ volumes:
   # Caddy config
   caddy_config:
     name: rentverse_caddy_config
+    driver: local
+
+  # Database data
+  postgres_data:
+    name: rentverse_postgres_data
     driver: local
