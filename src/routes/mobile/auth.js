@@ -10,12 +10,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const { prisma } = require('../../config/database');
-const { passport, handleAppleSignIn } = require('../../config/passport');
 
 const router = express.Router();
-
-// Initialize Passport
-router.use(passport.initialize());
 
 /**
  * @swagger
@@ -618,79 +614,6 @@ router.post('/google', async (req, res) => {
   }
 });
 
-/**
- * @swagger
- * /api/v1/m/auth/apple:
- *   post:
- *     summary: Authenticate with Apple (Mobile)
- *     tags: [Mobile - Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - identityToken
- *             properties:
- *               identityToken:
- *                 type: string
- *                 description: Apple identity token from mobile SDK
- *               firstName:
- *                 type: string
- *                 description: User's first name (only on first sign in)
- *               lastName:
- *                 type: string
- *                 description: User's last name (only on first sign in)
- *     responses:
- *       200:
- *         description: Authentication successful
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/MobileAuthResponse'
- *       400:
- *         description: Invalid token
- *       401:
- *         description: Authentication failed
- */
-router.post('/apple', async (req, res) => {
-  try {
-    const { identityToken, firstName, lastName } = req.body;
 
-    if (!identityToken) {
-      return res.status(400).json({
-        success: false,
-        message: 'Identity token is required',
-      });
-    }
-
-    // Decode and verify Apple identity token
-    const result = await handleAppleSignIn(identityToken, {
-      firstName,
-      lastName,
-    });
-
-    if (!result.success) {
-      return res.status(401).json({
-        success: false,
-        message: result.message || 'Apple authentication failed',
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Apple authentication successful',
-      data: result.data,
-    });
-  } catch (error) {
-    console.error('Apple auth error:', error);
-    res.status(401).json({
-      success: false,
-      message: 'Apple authentication failed',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-    });
-  }
-});
 
 module.exports = router;

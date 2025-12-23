@@ -13,6 +13,331 @@ const router = express.Router();
 
 /**
  * @swagger
+ * /api/v1/properties:
+ *   post:
+ *     summary: Create a new property (Landlord/Admin only)
+ *     tags: [Mobile - Properties]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - address
+ *               - city
+ *               - state
+ *               - zipCode
+ *               - price
+ *               - propertyTypeId
+ *             properties:
+ *               code:
+ *                 type: string
+ *                 description: Property code (auto-generated if not provided)
+ *               title:
+ *                 type: string
+ *                 description: Property title
+ *               description:
+ *                 type: string
+ *                 description: Property description
+ *               address:
+ *                 type: string
+ *                 description: Property address
+ *               city:
+ *                 type: string
+ *                 description: City
+ *               state:
+ *                 type: string
+ *                 description: State/Province
+ *               country:
+ *                 type: string
+ *                 description: Country code (default ID)
+ *               zipCode:
+ *                 type: string
+ *                 description: Postal code
+ *               placeId:
+ *                 type: string
+ *                 description: Google Places ID
+ *               latitude:
+ *                 type: number
+ *                 format: float
+ *                 description: Latitude coordinate
+ *               longitude:
+ *                 type: number
+ *                 format: float
+ *                 description: Longitude coordinate
+ *               price:
+ *                 type: number
+ *                 format: decimal
+ *                 description: Monthly rent price
+ *               currencyCode:
+ *                 type: string
+ *                 description: Currency code (default MYR)
+ *               propertyTypeId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Property type ID
+ *               bedrooms:
+ *                 type: integer
+ *                 description: Number of bedrooms
+ *               bathrooms:
+ *                 type: integer
+ *                 description: Number of bathrooms
+ *               areaSqm:
+ *                 type: number
+ *                 format: float
+ *                 description: Area in square meters
+ *               furnished:
+ *                 type: boolean
+ *                 description: Whether property is furnished
+ *               isAvailable:
+ *                 type: boolean
+ *                 default: true
+ *                 description: Whether property is available
+ *               status:
+ *                 type: string
+ *                 enum: [DRAFT, PENDING_REVIEW, APPROVED, REJECTED, ARCHIVED]
+ *                 description: Listing status
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array of image URLs
+ *               amenityIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: uuid
+ *                 description: Array of amenity IDs
+ *             example:
+ *               title: "Luxury Penthouse in KLCC"
+ *               description: "Stunning 3-bedroom penthouse with panoramic city views in the heart of Kuala Lumpur City Centre. Features premium finishes, private balcony, and access to world-class amenities including infinity pool, gym, and concierge service."
+ *               address: "Jalan Pinang, KLCC"
+ *               city: "Kuala Lumpur"
+ *               state: "Kuala Lumpur"
+ *               country: "MY"
+ *               zipCode: "50450"
+ *               latitude: 3.1516
+ *               longitude: 101.7121
+ *               placeId: "ChIJ5-U6m9w61TERqB3wOx4BKYw"
+ *               price: 8500.00
+ *               currencyCode: "MYR"
+ *               propertyTypeId: "cltxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+ *               bedrooms: 3
+ *               bathrooms: 3
+ *               areaSqm: 180.0
+ *               furnished: true
+ *               isAvailable: true
+ *               status: "PENDING_REVIEW"
+ *               images: [
+ *                 "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800",
+ *                 "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800",
+ *                 "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800"
+ *               ]
+ *               amenityIds: [
+ *                 "amenity-ac-001",
+ *                 "amenity-pool-001",
+ *                 "amenity-gym-001",
+ *                 "amenity-security-001",
+ *                 "amenity-parking-001"
+ *               ]
+ *     responses:
+ *       201:
+ *         description: Property created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     property:
+ *                       $ref: '#/components/schemas/Property'
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ */
+
+/**
+ * @swagger
+ * /api/v1/properties/{id}:
+ *   put:
+ *     summary: Update property by ID
+ *     tags: [Mobile - Properties]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: UUID of the property to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 description: Property title
+ *               description:
+ *                 type: string
+ *                 description: Property description
+ *               address:
+ *                 type: string
+ *                 description: Property address
+ *               city:
+ *                 type: string
+ *                 description: City
+ *               state:
+ *                 type: string
+ *                 description: State/Province
+ *               country:
+ *                 type: string
+ *                 description: Country code
+ *               zipCode:
+ *                 type: string
+ *                 description: Postal code
+ *               placeId:
+ *                 type: string
+ *                 description: Google Places ID
+ *               latitude:
+ *                 type: number
+ *                 format: float
+ *                 description: Latitude coordinate
+ *               longitude:
+ *                 type: number
+ *                 format: float
+ *                 description: Longitude coordinate
+ *               price:
+ *                 type: number
+ *                 format: decimal
+ *                 description: Monthly rent price
+ *               currencyCode:
+ *                 type: string
+ *                 description: Currency code
+ *               propertyTypeId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Property type ID
+ *               bedrooms:
+ *                 type: integer
+ *                 description: Number of bedrooms
+ *               bathrooms:
+ *                 type: integer
+ *                 description: Number of bathrooms
+ *               areaSqm:
+ *                 type: number
+ *                 format: float
+ *                 description: Area in square meters
+ *               furnished:
+ *                 type: boolean
+ *                 description: Whether property is furnished
+ *               isAvailable:
+ *                 type: boolean
+ *                 description: Whether property is available
+ *               status:
+ *                 type: string
+ *                 enum: [DRAFT, PENDING_REVIEW, APPROVED, REJECTED, ARCHIVED]
+ *                 description: Listing status
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array of image URLs
+ *               amenityIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: uuid
+ *                 description: Array of amenity IDs
+ *           example:
+ *             title: "Luxury Penthouse in KLCC - UPDATED"
+ *             price: 9000.00
+ *             furnished: true
+ *             isAvailable: false
+ *             status: "APPROVED"
+ *     responses:
+ *       200:
+ *         description: Property updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     property:
+ *                       $ref: '#/components/schemas/Property'
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Property not found
+ */
+
+/**
+ * @swagger
+ * /api/v1/properties/{id}:
+ *   delete:
+ *     summary: Delete property by ID
+ *     tags: [Mobile - Properties]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: UUID of the property to delete
+ *     responses:
+ *       200:
+ *         description: Property deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *             example:
+ *               success: true
+ *               message: "Property deleted successfully"
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Property not found
+ */
+
+/**
+ * @swagger
  * /api/v1/m/properties:
  *   get:
  *     summary: Get all properties with filters (Mobile)
@@ -699,9 +1024,9 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
