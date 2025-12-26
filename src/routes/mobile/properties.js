@@ -1035,4 +1035,35 @@ function toRad(deg) {
   return deg * (Math.PI / 180);
 }
 
+// Check property availability
+router.get('/:propertyId/availability', async (req, res) => {
+  try {
+    const { propertyId } = req.params;
+    const { startDate, endDate } = req.query;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'startDate and endDate are required'
+      });
+    }
+
+    const propertiesService = require('../../modules/properties/properties.service');
+    const result = await propertiesService.checkAvailability(
+      propertyId,
+      startDate,
+      endDate
+    );
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Check availability error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check availability',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 module.exports = router;

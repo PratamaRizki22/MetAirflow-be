@@ -881,6 +881,49 @@ class BookingsService {
       throw error;
     }
   }
+
+  /**
+   * Upload tenant signature for rental agreement
+   * @param {string} bookingId
+   * @param {string} signatureUrl
+   * @param {string} userId
+   * @returns {Promise<Object>}
+   */
+  async uploadTenantSignature(bookingId, signatureUrl, userId) {
+    const booking = await prisma.lease.findUnique({
+      where: { id: bookingId }
+    });
+
+    if (!booking) {
+      throw new Error('Booking not found');
+    }
+
+    if (booking.tenantId !== userId) {
+      throw new Error('Access denied: Only the tenant can sign this agreement');
+    }
+
+    if (booking.tenantSignatureUrl) {
+      throw new Error('Agreement already signed');
+    }
+
+    const updated = await prisma.lease.update({
+      where: { id: bookingId },
+      data: {
+        tenantSignatureUrl: signatureUrl,
+        signedAt: new Date()
+      },
+      include: {
+        property: {
+          select: {
+            id: true,
+            title: true
+          }
+        }
+      }
+    });
+
+    return updated;
+  }
 }
 
 module.exports = new BookingsService();

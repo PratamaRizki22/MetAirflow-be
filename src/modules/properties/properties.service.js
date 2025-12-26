@@ -1332,6 +1332,31 @@ class PropertiesService {
       throw error;
     }
   }
+
+  /**
+   * Check if property is available for given dates
+   */
+  async checkAvailability(propertyId, startDate, endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    const conflicts = await prisma.lease.findMany({
+      where: {
+        propertyId,
+        status: { in: ['PENDING', 'APPROVED', 'ACTIVE'] },
+        OR: [
+          { AND: [{ startDate: { lte: start } }, { endDate: { gte: start } }] },
+          { AND: [{ startDate: { lte: end } }, { endDate: { gte: end } }] },
+          { AND: [{ startDate: { gte: start } }, { endDate: { lte: end } }] }
+        ]
+      }
+    });
+
+    return {
+      available: conflicts.length === 0,
+      conflictingBookings: conflicts
+    };
+  }
 }
 
 module.exports = new PropertiesService();

@@ -722,4 +722,38 @@ router.post('/:id/reject', auth, async (req, res) => {
   }
 });
 
+// Upload tenant signature
+router.post('/:bookingId/upload-signature', auth, async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { signatureUrl } = req.body;
+
+    if (!signatureUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'Signature URL is required'
+      });
+    }
+
+    const bookingsService = require('../../modules/bookings/bookings.service');
+    const result = await bookingsService.uploadTenantSignature(
+      bookingId,
+      signatureUrl,
+      req.user.id
+    );
+
+    res.json({
+      success: true,
+      message: 'Signature uploaded successfully',
+      data: result
+    });
+  } catch (error) {
+    console.error('Upload signature error:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to upload signature'
+    });
+  }
+});
+
 module.exports = router;
