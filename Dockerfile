@@ -22,11 +22,10 @@ COPY --chown=expressjs:nodejs package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY --chown=expressjs:nodejs prisma ./prisma
 
 # Install dependencies
-# Use || true to allow husky to fail gracefully (no git in container)
-RUN pnpm install --frozen-lockfile --prod=false || true
+RUN pnpm install --no-frozen-lockfile --prod=false
 
 # Generate Prisma Client
-RUN pnpm prisma generate
+RUN npx prisma generate
 
 # Copy application source
 COPY --chown=expressjs:nodejs src ./src

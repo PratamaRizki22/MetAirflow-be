@@ -581,6 +581,7 @@ router.post('/google', async (req, res) => {
           lastName: lastName || '',
           name: `${firstName || ''} ${lastName || ''}`.trim(),
           profilePicture: picture,
+          password: null, // OAuth users don't have passwords
           role: 'USER',
           isActive: true,
         },
@@ -613,7 +614,5 @@ router.post('/google', async (req, res) => {
     });
   }
 });
-
-
 
 module.exports = router;
