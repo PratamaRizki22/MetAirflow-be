@@ -14,6 +14,8 @@ const bookingsRoutes = require('./bookings');
 const propertyTypesRoutes = require('./propertyTypes');
 const amenitiesRoutes = require('./amenities');
 const uploadRoutes = require('./upload');
+const paymentsRoutes = require('./payments');
+const reviewsRoutes = require('../../modules/reviews/reviews.routes');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -23,6 +25,8 @@ router.use('/bookings', bookingsRoutes);
 router.use('/property-types', propertyTypesRoutes);
 router.use('/amenities', amenitiesRoutes);
 router.use('/upload', uploadRoutes);
+router.use('/payments', paymentsRoutes);
+router.use('/', reviewsRoutes); // Reviews routes (includes /reviews and /properties/:id/reviews)
 
 /**
  * @swagger
@@ -61,6 +65,8 @@ router.get('/', (req, res) => {
       propertyTypes: '/api/v1/m/property-types',
       amenities: '/api/v1/m/amenities',
       upload: '/api/v1/m/upload',
+      payments: '/api/v1/m/payments',
+      reviews: '/api/v1/m/reviews',
     },
   });
 });

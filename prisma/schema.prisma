@@ -66,6 +66,7 @@ model User {
   propertyViews    PropertyView[]    @relation("PropertyViews")
   propertyRatings  PropertyRating[]  @relation("PropertyRatings")
   propertyFavorites PropertyFavorite[] @relation("PropertyFavorites")
+  reviews          Review[]          @relation("UserReviews")
 
   @@map("users")
 }
@@ -103,6 +104,9 @@ model Property {
   projectName    String?
   developer      String?
   
+  // Rental agreement template (uploaded by landlord)
+  agreementTemplateUrl String?  // URL to rental agreement PDF/DOC
+  
   // Metadata sistem
   code           String                   @unique
   status         ListingStatus            @default(PENDING_REVIEW)
@@ -119,6 +123,7 @@ model Property {
   views          PropertyView[]
   ratings        PropertyRating[]
   favorites      PropertyFavorite[]
+  reviews        Review[]                 @relation("PropertyReviews")
   owner          User                     @relation("OwnerProperties", fields: [ownerId], references: [id], onDelete: Cascade)
   propertyType   PropertyType             @relation(fields: [propertyTypeId], references: [id])
   amenities      PropertyAmenity[]
@@ -166,6 +171,13 @@ model Lease {
   securityDeposit Decimal?         @db.Decimal(12, 2)
   status          LeaseStatus      @default(PENDING)
   notes           String?          // Catatan dari user saat booking
+  hasReview       Boolean          @default(false) // Track if tenant has reviewed
+  
+  // Digital signature fields
+  tenantSignatureUrl  String?      // URL to tenant's signature image
+  signedAgreementUrl  String?      // URL to final signed agreement PDF
+  signedAt            DateTime?    // When tenant signed the agreement
+  
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   propertyId      String
@@ -176,6 +188,7 @@ model Lease {
   property        Property         @relation(fields: [propertyId], references: [id])
   tenant          User             @relation("TenantLeases", fields: [tenantId], references: [id])
   agreement       RentalAgreement?
+  review          Review?          // One-to-one relation with Review
 
   @@index([propertyId, status])
   @@index([tenantId])
@@ -297,6 +310,28 @@ model PropertyFavorite {
   @@index([userId])
   @@index([userId, favoritedAt]) // For user's favorites list ordered by date
   @@map("property_favorites")
+}
+
+/// Review dan rating property oleh tenant setelah menyelesaikan booking/lease.
+/// Satu review per lease untuk memastikan hanya tenant yang benar-benar menginap yang bisa review.
+model Review {
+  id         String    @id @default(uuid())
+  propertyId String
+  userId     String
+  leaseId    String    @unique // One review per lease
+  rating     Int       // 1-5 stars
+  comment    String    // Review text (minimum 10 characters enforced in app)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  
+  property   Property  @relation("PropertyReviews", fields: [propertyId], references: [id], onDelete: Cascade)
+  user       User      @relation("UserReviews", fields: [userId], references: [id], onDelete: Cascade)
+  lease      Lease     @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, createdAt]) // For fetching property reviews ordered by date
+  @@index([userId])
+  @@index([rating]) // For filtering by rating
+  @@map("reviews")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
