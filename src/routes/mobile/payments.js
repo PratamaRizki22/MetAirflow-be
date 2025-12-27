@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const paymentController = require('../../modules/payments/payments.controller');
-const { authenticate } = require('../../middleware/auth');
+const { auth } = require('../../middleware/auth');
 
 /**
  * Mobile Payment Routes
@@ -14,7 +14,7 @@ const { authenticate } = require('../../middleware/auth');
  * @access  Private
  * @body    { bookingId: string }
  */
-router.post('/payment-sheet', authenticate, paymentController.createPaymentSheet);
+router.post('/payment-sheet', auth, paymentController.createPaymentSheet);
 
 /**
  * @route   POST /api/v1/m/payments/confirm
@@ -22,7 +22,7 @@ router.post('/payment-sheet', authenticate, paymentController.createPaymentSheet
  * @access  Private
  * @body    { bookingId: string, paymentIntentId: string }
  */
-router.post('/confirm', authenticate, paymentController.confirmPayment);
+router.post('/confirm', auth, paymentController.confirmPayment);
 
 /**
  * @route   GET /api/v1/m/payments/history
@@ -30,7 +30,7 @@ router.post('/confirm', authenticate, paymentController.confirmPayment);
  * @access  Private
  * @query   page, limit, status
  */
-router.get('/history', authenticate, paymentController.getPaymentHistory);
+router.get('/history', auth, paymentController.getPaymentHistory);
 
 /**
  * @route   GET /api/v1/m/payments/:paymentId
@@ -38,7 +38,7 @@ router.get('/history', authenticate, paymentController.getPaymentHistory);
  * @access  Private
  * @param   paymentId
  */
-router.get('/:paymentId', authenticate, paymentController.getPaymentDetails);
+router.get('/:paymentId', auth, paymentController.getPaymentDetails);
 
 /**
  * @route   POST /api/v1/m/payments/cancel
@@ -46,7 +46,7 @@ router.get('/:paymentId', authenticate, paymentController.getPaymentDetails);
  * @access  Private
  * @body    { paymentIntentId: string }
  */
-router.post('/cancel', authenticate, paymentController.cancelPayment);
+router.post('/cancel', auth, paymentController.cancelPayment);
 
 /**
  * @route   POST /api/v1/m/payments/refund
@@ -54,6 +54,6 @@ router.post('/cancel', authenticate, paymentController.cancelPayment);
  * @access  Private
  * @body    { bookingId: string, reason?: string }
  */
-router.post('/refund', authenticate, paymentController.requestRefund);
+router.post('/refund', auth, paymentController.requestRefund);
 
 module.exports = router;

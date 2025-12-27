@@ -7,19 +7,22 @@ const AppError = require('../../utils/AppError');
  * POST /api/v1/m/payments/payment-sheet
  */
 exports.createPaymentSheet = catchAsync(async (req, res) => {
-    const { bookingId } = req.body;
-    const userId = req.user.id;
+  const { bookingId } = req.body;
+  const userId = req.user.id;
 
-    if (!bookingId) {
-        throw new AppError('Booking ID is required', 400);
-    }
+  if (!bookingId) {
+    throw new AppError('Booking ID is required', 400);
+  }
 
-    const paymentSheet = await paymentService.createPaymentSheet(bookingId, userId);
+  const paymentSheet = await paymentService.createPaymentSheet(
+    bookingId,
+    userId
+  );
 
-    res.status(200).json({
-        success: true,
-        data: paymentSheet,
-    });
+  res.status(200).json({
+    success: true,
+    data: paymentSheet,
+  });
 });
 
 /**
@@ -27,19 +30,23 @@ exports.createPaymentSheet = catchAsync(async (req, res) => {
  * POST /api/v1/m/payments/confirm
  */
 exports.confirmPayment = catchAsync(async (req, res) => {
-    const { bookingId, paymentIntentId } = req.body;
-    const userId = req.user.id;
+  const { bookingId, paymentIntentId } = req.body;
+  const userId = req.user.id;
 
-    if (!bookingId || !paymentIntentId) {
-        throw new AppError('Booking ID and Payment Intent ID are required', 400);
-    }
+  if (!bookingId || !paymentIntentId) {
+    throw new AppError('Booking ID and Payment Intent ID are required', 400);
+  }
 
-    const payment = await paymentService.confirmPayment(bookingId, paymentIntentId, userId);
+  const payment = await paymentService.confirmPayment(
+    bookingId,
+    paymentIntentId,
+    userId
+  );
 
-    res.status(200).json({
-        success: true,
-        data: payment,
-    });
+  res.status(200).json({
+    success: true,
+    data: payment,
+  });
 });
 
 /**
@@ -47,19 +54,19 @@ exports.confirmPayment = catchAsync(async (req, res) => {
  * GET /api/v1/m/payments/history
  */
 exports.getPaymentHistory = catchAsync(async (req, res) => {
-    const userId = req.user.id;
-    const { page, limit, status } = req.query;
+  const userId = req.user.id;
+  const { page, limit, status } = req.query;
 
-    const result = await paymentService.getPaymentHistory(userId, {
-        page: parseInt(page) || 1,
-        limit: parseInt(limit) || 10,
-        status,
-    });
+  const result = await paymentService.getPaymentHistory(userId, {
+    page: parseInt(page) || 1,
+    limit: parseInt(limit) || 10,
+    status,
+  });
 
-    res.status(200).json({
-        success: true,
-        data: result,
-    });
+  res.status(200).json({
+    success: true,
+    data: result,
+  });
 });
 
 /**
@@ -67,15 +74,15 @@ exports.getPaymentHistory = catchAsync(async (req, res) => {
  * GET /api/v1/m/payments/:paymentId
  */
 exports.getPaymentDetails = catchAsync(async (req, res) => {
-    const { paymentId } = req.params;
-    const userId = req.user.id;
+  const { paymentId } = req.params;
+  const userId = req.user.id;
 
-    const payment = await paymentService.getPaymentDetails(paymentId, userId);
+  const payment = await paymentService.getPaymentDetails(paymentId, userId);
 
-    res.status(200).json({
-        success: true,
-        data: payment,
-    });
+  res.status(200).json({
+    success: true,
+    data: payment,
+  });
 });
 
 /**
@@ -83,19 +90,19 @@ exports.getPaymentDetails = catchAsync(async (req, res) => {
  * POST /api/v1/m/payments/cancel
  */
 exports.cancelPayment = catchAsync(async (req, res) => {
-    const { paymentIntentId } = req.body;
-    const userId = req.user.id;
+  const { paymentIntentId } = req.body;
+  const userId = req.user.id;
 
-    if (!paymentIntentId) {
-        throw new AppError('Payment Intent ID is required', 400);
-    }
+  if (!paymentIntentId) {
+    throw new AppError('Payment Intent ID is required', 400);
+  }
 
-    const result = await paymentService.cancelPayment(paymentIntentId, userId);
+  const result = await paymentService.cancelPayment(paymentIntentId, userId);
 
-    res.status(200).json({
-        success: true,
-        ...result,
-    });
+  res.status(200).json({
+    success: true,
+    ...result,
+  });
 });
 
 /**
@@ -103,19 +110,19 @@ exports.cancelPayment = catchAsync(async (req, res) => {
  * POST /api/v1/m/payments/refund
  */
 exports.requestRefund = catchAsync(async (req, res) => {
-    const { bookingId, reason } = req.body;
-    const userId = req.user.id;
+  const { bookingId, reason } = req.body;
+  const userId = req.user.id;
 
-    if (!bookingId) {
-        throw new AppError('Booking ID is required', 400);
-    }
+  if (!bookingId) {
+    throw new AppError('Booking ID is required', 400);
+  }
 
-    const refund = await paymentService.requestRefund(bookingId, userId, reason);
+  const refund = await paymentService.requestRefund(bookingId, userId, reason);
 
-    res.status(200).json({
-        success: true,
-        data: refund,
-    });
+  res.status(200).json({
+    success: true,
+    data: refund,
+  });
 });
 
 /**
@@ -123,23 +130,37 @@ exports.requestRefund = catchAsync(async (req, res) => {
  * POST /api/v1/webhooks/stripe
  */
 exports.handleWebhook = catchAsync(async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const sig = req.headers['stripe-signature'];
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
-    let event;
+  // Security: Validate required secrets
+  if (!webhookSecret) {
+    throw new AppError('Webhook secret not configured', 500);
+  }
 
-    try {
-        const Stripe = require('stripe');
-        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  if (!stripeSecretKey) {
+    throw new AppError('Stripe secret key not configured', 500);
+  }
 
-        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-    } catch (err) {
-        console.error('Webhook signature verification failed:', err.message);
-        throw new AppError(`Webhook Error: ${err.message}`, 400);
-    }
+  if (!sig) {
+    throw new AppError('Missing stripe-signature header', 400);
+  }
 
-    // Handle the event
-    await paymentService.handleWebhook(event);
+  let event;
 
-    res.status(200).json({ received: true });
+  try {
+    const Stripe = require('stripe');
+    const stripe = new Stripe(stripeSecretKey);
+
+    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err.message);
+    throw new AppError(`Webhook Error: ${err.message}`, 400);
+  }
+
+  // Handle the event
+  await paymentService.handleWebhook(event);
+
+  res.status(200).json({ received: true });
 });

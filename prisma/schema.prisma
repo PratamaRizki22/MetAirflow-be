@@ -57,6 +57,9 @@ model User {
   appleId          String?           @unique
   githubId         String?           @unique
   twitterId        String?           @unique
+
+  // Roles & Status
+  isHost           Boolean           @default(false) // True if user has activated hosting mode
   
   leasesAsLandlord Lease[]           @relation("LandlordLeases")
   leasesAsTenant   Lease[]           @relation("TenantLeases")
