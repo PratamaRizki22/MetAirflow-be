@@ -92,6 +92,89 @@ const router = express.Router();
 
 /**
  * @swagger
+ * /api/v1/m/auth/check-email:
+ *   post:
+ *     summary: Check if email exists in the system (Mobile)
+ *     tags: [Mobile - Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email address to check
+ *     responses:
+ *       200:
+ *         description: Email check successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     exists:
+ *                       type: boolean
+ *                       description: Whether the email exists in the system
+ *       400:
+ *         description: Bad request
+ */
+router.post(
+  '/check-email',
+  [
+    body('email')
+      .isEmail()
+      .normalizeEmail()
+      .withMessage('Valid email is required'),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors.array(),
+        });
+      }
+
+      const { email } = req.body;
+
+      // Check if user exists
+      const user = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      });
+
+      res.json({
+        success: true,
+        data: {
+          exists: !!user,
+        },
+      });
+    } catch (error) {
+      console.error('Check email error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to check email',
+        error:
+          process.env.NODE_ENV === 'development' ? error.message : undefined,
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
  * /api/v1/m/auth/register:
  *   post:
  *     summary: Register a new user (Mobile)
