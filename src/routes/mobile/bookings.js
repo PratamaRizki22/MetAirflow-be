@@ -40,8 +40,8 @@ const router = express.Router();
  *         name: role
  *         schema:
  *           type: string
- *           enum: [tenant, owner]
- *         description: Get bookings as tenant or owner
+ *           enum: [tenant, landlord]
+ *         description: Get bookings as tenant or landlord
  *     responses:
  *       200:
  *         description: Bookings retrieved successfully
@@ -56,12 +56,14 @@ router.get('/', auth, async (req, res) => {
     const { status, role = 'tenant' } = req.query;
 
     const where =
-      role === 'owner' ? { ownerId: req.user.id } : { tenantId: req.user.id };
+      role === 'landlord'
+        ? { landlordId: req.user.id }
+        : { tenantId: req.user.id };
 
     if (status) where.status = status;
 
     const [bookings, total] = await Promise.all([
-      prisma.booking.findMany({
+      prisma.lease.findMany({
         where,
         include: {
           property: {
@@ -79,7 +81,7 @@ router.get('/', auth, async (req, res) => {
               email: true,
             },
           },
-          owner: {
+          landlord: {
             select: {
               id: true,
               firstName: true,
@@ -94,7 +96,7 @@ router.get('/', auth, async (req, res) => {
         take: limit,
         orderBy: { createdAt: 'desc' },
       }),
-      prisma.booking.count({ where }),
+      prisma.lease.count({ where }),
     ]);
 
     res.json({
@@ -145,7 +147,7 @@ router.get('/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const booking = await prisma.booking.findUnique({
+    const booking = await prisma.lease.findUnique({
       where: { id },
       include: {
         property: {
@@ -169,7 +171,7 @@ router.get('/:id', auth, async (req, res) => {
             email: true,
           },
         },
-        owner: {
+        landlord: {
           select: {
             id: true,
             firstName: true,
@@ -192,7 +194,10 @@ router.get('/:id', auth, async (req, res) => {
     }
 
     // Check if user is authorized to view this booking
-    if (booking.tenantId !== req.user.id && booking.ownerId !== req.user.id) {
+    if (
+      booking.tenantId !== req.user.id &&
+      booking.landlordId !== req.user.id
+    ) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to view this booking',
@@ -346,7 +351,7 @@ router.post(
       }
 
       // Check for overlapping bookings
-      const overlappingBooking = await prisma.booking.findFirst({
+      const overlappingBooking = await prisma.lease.findFirst({
         where: {
           propertyId,
           status: { in: ['PENDING', 'APPROVED'] },
@@ -380,12 +385,12 @@ router.post(
       const bookingCode = `BK-${Date.now().toString(36).toUpperCase()}`;
 
       // Create booking
-      const booking = await prisma.booking.create({
+      const booking = await prisma.lease.create({
         data: {
           code: bookingCode,
           propertyId,
           tenantId: req.user.id,
-          ownerId: property.ownerId,
+          landlordId: property.ownerId,
           startDate: start,
           endDate: end,
           totalPrice,
@@ -398,7 +403,7 @@ router.post(
               propertyType: true,
             },
           },
-          owner: {
+          landlord: {
             select: {
               id: true,
               firstName: true,
@@ -464,7 +469,7 @@ router.post('/:id/cancel', auth, async (req, res) => {
     const { id } = req.params;
     const { reason } = req.body;
 
-    const booking = await prisma.booking.findUnique({
+    const booking = await prisma.lease.findUnique({
       where: { id },
     });
 
@@ -476,7 +481,10 @@ router.post('/:id/cancel', auth, async (req, res) => {
     }
 
     // Check if user is authorized
-    if (booking.tenantId !== req.user.id && booking.ownerId !== req.user.id) {
+    if (
+      booking.tenantId !== req.user.id &&
+      booking.landlordId !== req.user.id
+    ) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to cancel this booking',
@@ -492,7 +500,7 @@ router.post('/:id/cancel', auth, async (req, res) => {
     }
 
     // Update booking
-    const updatedBooking = await prisma.booking.update({
+    const updatedBooking = await prisma.lease.update({
       where: { id },
       data: {
         status: 'CANCELLED',
@@ -553,7 +561,7 @@ router.post('/:id/approve', auth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const booking = await prisma.booking.findUnique({
+    const booking = await prisma.lease.findUnique({
       where: { id },
     });
 
@@ -564,8 +572,8 @@ router.post('/:id/approve', auth, async (req, res) => {
       });
     }
 
-    // Only owner can approve
-    if (booking.ownerId !== req.user.id) {
+    // Only landlord can approve
+    if (booking.landlordId !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'Only property owner can approve bookings',
@@ -579,7 +587,7 @@ router.post('/:id/approve', auth, async (req, res) => {
       });
     }
 
-    const updatedBooking = await prisma.booking.update({
+    const updatedBooking = await prisma.lease.update({
       where: { id },
       data: {
         status: 'APPROVED',
@@ -657,7 +665,7 @@ router.post('/:id/reject', auth, async (req, res) => {
     const { id } = req.params;
     const { reason } = req.body;
 
-    const booking = await prisma.booking.findUnique({
+    const booking = await prisma.lease.findUnique({
       where: { id },
     });
 
@@ -668,8 +676,8 @@ router.post('/:id/reject', auth, async (req, res) => {
       });
     }
 
-    // Only owner can reject
-    if (booking.ownerId !== req.user.id) {
+    // Only landlord can reject
+    if (booking.landlordId !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'Only property owner can reject bookings',
@@ -683,7 +691,7 @@ router.post('/:id/reject', auth, async (req, res) => {
       });
     }
 
-    const updatedBooking = await prisma.booking.update({
+    const updatedBooking = await prisma.lease.update({
       where: { id },
       data: {
         status: 'REJECTED',
@@ -731,7 +739,7 @@ router.post('/:bookingId/upload-signature', auth, async (req, res) => {
     if (!signatureUrl) {
       return res.status(400).json({
         success: false,
-        message: 'Signature URL is required'
+        message: 'Signature URL is required',
       });
     }
 
@@ -745,13 +753,13 @@ router.post('/:bookingId/upload-signature', auth, async (req, res) => {
     res.json({
       success: true,
       message: 'Signature uploaded successfully',
-      data: result
+      data: result,
     });
   } catch (error) {
     console.error('Upload signature error:', error);
     res.status(400).json({
       success: false,
-      message: error.message || 'Failed to upload signature'
+      message: error.message || 'Failed to upload signature',
     });
   }
 });

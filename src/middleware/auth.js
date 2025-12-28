@@ -21,6 +21,7 @@ const auth = async (req, res, next) => {
         email: true,
         name: true,
         role: true,
+        isHost: true, // Make sure isHost is selected
         isActive: true,
       },
     });
@@ -31,6 +32,11 @@ const auth = async (req, res, next) => {
         message: 'Access denied. User not found or inactive.',
       });
     }
+
+    // Attach computed isLandlord for convenience if needed by consumers relying on req.user directly
+    // checking properties is expensive here so we rely on isHost mostly,
+    // but strict landlord check usually happens in service layer
+    user.isLandlord = user.isHost === true;
 
     req.user = user;
     next();
@@ -61,11 +67,13 @@ const optionalAuth = async (req, res, next) => {
         email: true,
         name: true,
         role: true,
+        isHost: true, // Make sure isHost is selected
         isActive: true,
       },
     });
 
     if (user && user.isActive) {
+      user.isLandlord = user.isHost === true;
       req.user = user;
     }
 

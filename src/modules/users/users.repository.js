@@ -36,7 +36,7 @@ class UsersRepository {
   }
 
   async findById(id) {
-    return await prisma.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id },
       select: {
         id: true,
@@ -48,17 +48,64 @@ class UsersRepository {
         phone: true,
         profilePicture: true,
         role: true,
+        isHost: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
+        properties: {
+          select: {
+            id: true,
+          },
+          take: 1, // Only need to know if at least one exists
+        },
       },
     });
+
+    if (!user) return null;
+
+    // Add computed isLandlord field (TRUE if manually set as host OR has properties)
+    const { properties, ...userData } = user;
+    return {
+      ...userData,
+      isLandlord: userData.isHost || properties.length > 0,
+    };
   }
 
   async findByEmail(email) {
-    return await prisma.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { email },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        name: true,
+        dateOfBirth: true,
+        phone: true,
+        profilePicture: true,
+        role: true,
+        isHost: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        password: true, // Needed for auth/login check
+        properties: {
+          select: {
+            id: true,
+          },
+          take: 1,
+        },
+      },
     });
+
+    if (!user) return null;
+
+    // Add computed isLandlord field
+    const { properties, ...userData } = user;
+    return {
+      ...userData,
+      isLandlord: userData.isHost || properties.length > 0,
+    };
   }
 
   async create(userData) {
@@ -66,7 +113,7 @@ class UsersRepository {
     const computedName =
       `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
 
-    return await prisma.user.create({
+    const createdUser = await prisma.user.create({
       data: {
         ...userData,
         name: computedName,
@@ -81,11 +128,18 @@ class UsersRepository {
         phone: true,
         profilePicture: true,
         role: true,
+        isHost: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
       },
     });
+
+    // Return with isLandlord (default false for new user usually)
+    return {
+      ...createdUser,
+      isLandlord: createdUser.isHost, // Should be false initially unless specified
+    };
   }
 
   async update(id, updateData) {
@@ -112,7 +166,7 @@ class UsersRepository {
       dataToUpdate.name = `${firstName} ${lastName}`.trim();
     }
 
-    return await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id },
       data: dataToUpdate,
       select: {
@@ -125,11 +179,17 @@ class UsersRepository {
         phone: true,
         profilePicture: true,
         role: true,
+        isHost: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
       },
     });
+
+    return {
+      ...updatedUser,
+      isLandlord: updatedUser.isHost, // Note: we don't check properties here for simplicity, assuming update doesn't change property ownership directly
+    };
   }
 
   async delete(id) {

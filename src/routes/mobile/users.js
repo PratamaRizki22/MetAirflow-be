@@ -50,6 +50,7 @@ router.get('/profile', auth, async (req, res) => {
         phone: true,
         profilePicture: true,
         role: true,
+        isHost: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
@@ -170,6 +171,7 @@ router.put(
           phone: true,
           profilePicture: true,
           role: true,
+          isHost: true,
           isActive: true,
           updatedAt: true,
         },
@@ -191,6 +193,65 @@ router.put(
     }
   }
 );
+
+/**
+ * @swagger
+ * /api/v1/m/users/activate-hosting:
+ *   post:
+ *     summary: Activate hosting for current user (Mobile)
+ *     tags: [Mobile - Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Hosting activated successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/activate-hosting', auth, async (req, res) => {
+  console.log(
+    '🚀 [Backend] Received request to activate hosting for User ID:',
+    req.user.id
+  );
+  try {
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { isHost: true },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        name: true,
+        dateOfBirth: true,
+        phone: true,
+        profilePicture: true,
+        role: true,
+        isHost: true,
+        isActive: true,
+        updatedAt: true,
+      },
+    });
+
+    console.log(
+      '✅ [Backend] Successfully activated hosting. User isHost set to true for:',
+      user.email
+    );
+
+    res.json({
+      success: true,
+      message: 'Hosting activated successfully',
+      data: { user },
+    });
+  } catch (error) {
+    console.error('Activate hosting error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to activate hosting',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
 
 /**
  * @swagger
@@ -341,7 +402,7 @@ router.get('/favorites', auth, async (req, res) => {
         },
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { favoritedAt: 'desc' },
       }),
       prisma.propertyFavorite.count({
         where: { userId: req.user.id },
@@ -411,7 +472,7 @@ router.get('/bookings', auth, async (req, res) => {
     if (status) where.status = status;
 
     const [bookings, total] = await Promise.all([
-      prisma.booking.findMany({
+      prisma.lease.findMany({
         where,
         include: {
           property: {
@@ -434,7 +495,7 @@ router.get('/bookings', auth, async (req, res) => {
         take: limit,
         orderBy: { createdAt: 'desc' },
       }),
-      prisma.booking.count({ where }),
+      prisma.lease.count({ where }),
     ]);
 
     res.json({

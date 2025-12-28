@@ -180,6 +180,7 @@ router.post(
           dateOfBirth: true,
           phone: true,
           role: true,
+          isHost: true,
           isActive: true,
           createdAt: true,
         },
@@ -266,6 +267,7 @@ router.post(
           phone: true,
           profilePicture: true,
           role: true,
+          isHost: true,
           isActive: true,
         },
       });
@@ -376,6 +378,7 @@ router.get('/me', async (req, res) => {
         phone: true,
         profilePicture: true,
         role: true,
+        isHost: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,

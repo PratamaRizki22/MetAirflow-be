@@ -338,6 +338,36 @@ router.patch(
   ],
   usersController.updateProfile
 );
+
+/**
+ * @swagger
+ * /api/v1/users/activate-hosting:
+ *   post:
+ *     summary: Activate hosting mode for current user
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Hosting activated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/activate-hosting', auth, usersController.activateHosting);
 /**
  * @swagger
  * /api/v1/users:

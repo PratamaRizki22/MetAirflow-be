@@ -124,6 +124,21 @@ class UsersService {
     return newUser;
   }
 
+  async activateHosting(userId) {
+    // Check if user exists
+    const existingUser = await usersRepository.findById(userId);
+    if (!existingUser) {
+      throw new Error('User not found');
+    }
+
+    // Set isHost = true (using repo's update method but need to bypass cleanUpdateData filtering in updateUser)
+    // So we'll call repo directly or create a specific update method.
+    // Reusing repo.update is fine since we passed id.
+
+    // We need to bypass the restriction in updateUser, so we call repository directly here
+    return await usersRepository.update(userId, { isHost: true });
+  }
+
   async checkUserAccess(userId, requestingUser) {
     // Users can only view their own profile, admins can view any profile
     if (requestingUser.role !== 'ADMIN' && requestingUser.id !== userId) {

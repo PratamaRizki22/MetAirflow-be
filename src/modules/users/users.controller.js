@@ -202,6 +202,34 @@ class UsersController {
     }
   }
 
+  async activateHosting(req, res) {
+    try {
+      const userId = req.user.id;
+
+      const user = await usersService.activateHosting(userId);
+
+      res.json({
+        success: true,
+        message: 'Hosting activated successfully',
+        data: { user },
+      });
+    } catch (error) {
+      console.error('Activate hosting error:', error);
+
+      if (error.message === 'User not found') {
+        return res.status(404).json({
+          success: false,
+          message: error.message,
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  }
+
   async updateProfile(req, res) {
     try {
       const errors = validationResult(req);
