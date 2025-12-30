@@ -77,8 +77,10 @@ class PredictionsController {
       console.log('Forwarding prediction request to ML service:', req.body);
 
       // Forward request to AI model with timeout
+      const aiServiceUrl =
+        process.env.AI_SERVICE_URL || 'http://localhost:8000';
       const response = await axios.post(
-        'http://localhost:8000/api/v1/predict/single',
+        `${aiServiceUrl}/api/v1/predict/single`,
         req.body,
         {
           headers: {
@@ -106,7 +108,8 @@ class PredictionsController {
       if (error.code === 'ECONNREFUSED') {
         return res.status(502).json({
           success: false,
-          message: 'ML prediction service is unavailable. Please try again later.',
+          message:
+            'ML prediction service is unavailable. Please try again later.',
           error: 'Connection refused',
         });
       }

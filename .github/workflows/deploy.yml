@@ -1,0 +1,44 @@
+name: Deploy Core Service
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Copy files via SCP
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 22
+          source: '.'
+          target: '~/rentverse-core-service'
+          rm: true # Clean target directory before copy
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 22
+          script: |
+            cd ~/rentverse-core-service
+
+            # Create .env file from secrets
+            echo "${{ secrets.ENV_FILE }}" > .env
+
+            # Build and restart containers
+            docker compose down
+            docker compose up -d --build
+
+            # Prune unused images
+            docker image prune -f
