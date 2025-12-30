@@ -74,26 +74,54 @@ class PredictionsController {
         });
       }
 
-      // Forward request to AI model
+      console.log('Forwarding prediction request to ML service:', req.body);
+
+      // Forward request to AI model with timeout
       const response = await axios.post(
-        'http://rentverse-ai.jokoyuliyanto.my.id/api/v1/predict/single',
+        'http://localhost:8000/api/v1/predict/single',
         req.body,
         {
           headers: {
             'Content-Type': 'application/json',
           },
+          timeout: 30000, // 30 second timeout
         }
       );
+
+      console.log('ML service response:', response.data);
 
       res.json({
         success: true,
         data: response.data,
       });
     } catch (error) {
-      console.error('Prediction error:', error.message);
-      res.status(500).json({
+      console.error('Prediction error:', {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+
+      // Handle specific error cases
+      if (error.code === 'ECONNREFUSED') {
+        return res.status(502).json({
+          success: false,
+          message: 'ML prediction service is unavailable. Please try again later.',
+          error: 'Connection refused',
+        });
+      }
+
+      if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
+        return res.status(504).json({
+          success: false,
+          message: 'Prediction request timed out. Please try again.',
+          error: 'Timeout',
+        });
+      }
+
+      res.status(error.response?.status || 500).json({
         success: false,
-        message: 'Failed to get prediction',
+        message: error.response?.data?.message || 'Failed to get prediction',
         error: error.response?.data || error.message,
       });
     }

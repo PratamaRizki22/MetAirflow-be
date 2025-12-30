@@ -393,6 +393,7 @@ router.post(
           landlordId: property.ownerId,
           startDate: start,
           endDate: end,
+          rentAmount: property.price,
           totalPrice,
           status: 'PENDING',
           message: message || null,

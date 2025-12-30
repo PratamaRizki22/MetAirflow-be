@@ -412,7 +412,7 @@ router.get('/favorites', auth, async (req, res) => {
     res.json({
       success: true,
       data: {
-        favorites: favorites.map(f => f.property),
+        favorites: favorites, // Return full favorite objects with property relation
         pagination: {
           page,
           limit,

@@ -36,17 +36,17 @@ class PaymentService {
     }
 
     try {
-      // 1. Get booking details
-      const booking = await prisma.booking.findUnique({
+      // 1. Get booking details (using Lease model)
+      const booking = await prisma.lease.findUnique({
         where: { id: bookingId },
         include: {
           property: {
             select: {
               title: true,
-              pricePerNight: true,
+              price: true,
             },
           },
-          user: {
+          tenant: {
             select: {
               id: true,
               email: true,
@@ -61,12 +61,12 @@ class PaymentService {
       }
 
       // Verify user owns this booking
-      if (booking.userId !== userId) {
+      if (booking.tenantId !== userId) {
         throw new AppError('Unauthorized access to booking', 403);
       }
 
       // Check if booking is already paid
-      if (booking.status === 'confirmed') {
+      if (booking.paymentStatus === 'paid') {
         throw new AppError('Booking already paid', 400);
       }
 
@@ -83,8 +83,8 @@ class PaymentService {
         );
       } else {
         customer = await stripe.customers.create({
-          email: booking.user.email,
-          name: booking.user.name,
+          email: booking.tenant.email,
+          name: booking.tenant.name,
           metadata: {
             userId: userId,
           },
@@ -98,7 +98,7 @@ class PaymentService {
       }
 
       // 3. Create or get existing payment record
-      let payment = await prisma.payment.findFirst({
+      let payment = await prisma.stripePayment.findFirst({
         where: {
           bookingId: bookingId,
           status: 'pending',
@@ -128,7 +128,7 @@ class PaymentService {
 
       // 6. Save or update payment record
       if (payment) {
-        payment = await prisma.payment.update({
+        payment = await prisma.stripePayment.update({
           where: { id: payment.id },
           data: {
             paymentIntentId: paymentIntent.id,
@@ -136,7 +136,7 @@ class PaymentService {
           },
         });
       } else {
-        payment = await prisma.payment.create({
+        payment = await prisma.stripePayment.create({
           data: {
             bookingId: booking.id,
             userId: userId,
@@ -176,7 +176,7 @@ class PaymentService {
       }
 
       // 2. Find payment record
-      const payment = await prisma.payment.findFirst({
+      const payment = await prisma.stripePayment.findFirst({
         where: {
           bookingId: bookingId,
           paymentIntentId: paymentIntentId,
@@ -196,7 +196,7 @@ class PaymentService {
       }
 
       // 3. Update payment status
-      const updatedPayment = await prisma.payment.update({
+      const updatedPayment = await prisma.stripePayment.update({
         where: { id: payment.id },
         data: {
           status: 'completed',
@@ -205,10 +205,10 @@ class PaymentService {
       });
 
       // 4. Update booking status to confirmed
-      await prisma.booking.update({
+      await prisma.lease.update({
         where: { id: bookingId },
         data: {
-          status: 'confirmed',
+          status: 'APPROVED',
           paymentStatus: 'paid',
         },
       });
@@ -241,7 +241,7 @@ class PaymentService {
       }
 
       const [payments, total] = await Promise.all([
-        prisma.payment.findMany({
+        prisma.stripePayment.findMany({
           where,
           skip,
           take: limit,
@@ -261,7 +261,7 @@ class PaymentService {
             },
           },
         }),
-        prisma.payment.count({ where }),
+        prisma.stripePayment.count({ where }),
       ]);
 
       return {
@@ -284,7 +284,7 @@ class PaymentService {
    */
   async getPaymentDetails(paymentId, userId) {
     try {
-      const payment = await prisma.payment.findUnique({
+      const payment = await prisma.stripePayment.findUnique({
         where: { id: paymentId },
         include: {
           booking: {
@@ -326,7 +326,7 @@ class PaymentService {
   async cancelPayment(paymentIntentId, userId) {
     try {
       // 1. Find payment record
-      const payment = await prisma.payment.findFirst({
+      const payment = await prisma.stripePayment.findFirst({
         where: { paymentIntentId },
       });
 
@@ -347,7 +347,7 @@ class PaymentService {
       await stripe.paymentIntents.cancel(paymentIntentId);
 
       // 3. Update payment status
-      await prisma.payment.update({
+      await prisma.stripePayment.update({
         where: { id: payment.id },
         data: { status: 'failed' },
       });
@@ -366,7 +366,7 @@ class PaymentService {
   async requestRefund(bookingId, userId, reason) {
     try {
       // 1. Find payment
-      const payment = await prisma.payment.findFirst({
+      const payment = await prisma.stripePayment.findFirst({
         where: {
           bookingId,
           status: 'completed',
@@ -409,7 +409,7 @@ class PaymentService {
       });
 
       // 4. Update payment status
-      await prisma.payment.update({
+      await prisma.stripePayment.update({
         where: { id: payment.id },
         data: {
           status: 'refunded',
@@ -418,10 +418,10 @@ class PaymentService {
       });
 
       // 5. Update booking status
-      await prisma.booking.update({
+      await prisma.lease.update({
         where: { id: bookingId },
         data: {
-          status: 'cancelled',
+          status: 'REJECTED',
           paymentStatus: 'refunded',
         },
       });
@@ -480,12 +480,12 @@ class PaymentService {
   }
 
   async handlePaymentSuccess(paymentIntent) {
-    const payment = await prisma.payment.findFirst({
+    const payment = await prisma.stripePayment.findFirst({
       where: { paymentIntentId: paymentIntent.id },
     });
 
     if (payment && payment.status === 'pending') {
-      await prisma.payment.update({
+      await prisma.stripePayment.update({
         where: { id: payment.id },
         data: {
           status: 'completed',
@@ -493,10 +493,10 @@ class PaymentService {
         },
       });
 
-      await prisma.booking.update({
+      await prisma.lease.update({
         where: { id: payment.bookingId },
         data: {
-          status: 'confirmed',
+          status: 'APPROVED',
           paymentStatus: 'paid',
         },
       });
@@ -504,20 +504,19 @@ class PaymentService {
   }
 
   async handlePaymentProcessing(paymentIntent) {
-    const payment = await prisma.payment.findFirst({
+    const payment = await prisma.stripePayment.findFirst({
       where: { paymentIntentId: paymentIntent.id },
     });
 
     if (payment && payment.status === 'pending') {
-      await prisma.payment.update({
+      await prisma.stripePayment.update({
         where: { id: payment.id },
         data: {
           status: 'processing',
         },
       });
 
-      // Optional: Update booking status to show payment is being processed
-      await prisma.booking.update({
+      await prisma.lease.update({
         where: { id: payment.bookingId },
         data: {
           paymentStatus: 'processing',
@@ -527,12 +526,12 @@ class PaymentService {
   }
 
   async handlePaymentFailure(paymentIntent) {
-    const payment = await prisma.payment.findFirst({
+    const payment = await prisma.stripePayment.findFirst({
       where: { paymentIntentId: paymentIntent.id },
     });
 
     if (payment) {
-      await prisma.payment.update({
+      await prisma.stripePayment.update({
         where: { id: payment.id },
         data: { status: 'failed' },
       });
@@ -540,20 +539,19 @@ class PaymentService {
   }
 
   async handlePaymentCanceled(paymentIntent) {
-    const payment = await prisma.payment.findFirst({
+    const payment = await prisma.stripePayment.findFirst({
       where: { paymentIntentId: paymentIntent.id },
     });
 
     if (payment && payment.status === 'pending') {
-      await prisma.payment.update({
+      await prisma.stripePayment.update({
         where: { id: payment.id },
         data: {
           status: 'canceled',
         },
       });
 
-      // Optional: Update booking status
-      await prisma.booking.update({
+      await prisma.lease.update({
         where: { id: payment.bookingId },
         data: {
           paymentStatus: 'canceled',
@@ -563,16 +561,14 @@ class PaymentService {
   }
 
   async handlePaymentRequiresAction(paymentIntent) {
-    const payment = await prisma.payment.findFirst({
+    const payment = await prisma.stripePayment.findFirst({
       where: { paymentIntentId: paymentIntent.id },
     });
 
     if (payment && payment.status === 'pending') {
-      // Log for monitoring - user needs to complete 3D Secure
       console.log(`Payment ${payment.id} requires action (3D Secure/OTP)`);
 
-      // Optional: Update status to track this
-      await prisma.payment.update({
+      await prisma.stripePayment.update({
         where: { id: payment.id },
         data: {
           status: 'requires_action',
@@ -582,12 +578,12 @@ class PaymentService {
   }
 
   async handleRefund(charge) {
-    const payment = await prisma.payment.findFirst({
+    const payment = await prisma.stripePayment.findFirst({
       where: { paymentIntentId: charge.payment_intent },
     });
 
     if (payment) {
-      await prisma.payment.update({
+      await prisma.stripePayment.update({
         where: { id: payment.id },
         data: {
           status: 'refunded',
@@ -595,10 +591,10 @@ class PaymentService {
         },
       });
 
-      await prisma.booking.update({
+      await prisma.lease.update({
         where: { id: payment.bookingId },
         data: {
-          status: 'cancelled',
+          status: 'REJECTED',
           paymentStatus: 'refunded',
         },
       });

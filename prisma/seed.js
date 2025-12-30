@@ -4,6 +4,7 @@ const {
   seedAmenities,
   seedUsers,
   seedProperties,
+  seedRatings,
 } = require('./seeders');
 
 async function main() {
@@ -32,6 +33,11 @@ async function main() {
     results.properties = await seedProperties();
     console.log('');
 
+    // 5. Seed Ratings (requires properties and users)
+    console.log('5️⃣ Seeding Property Ratings...');
+    results.ratings = await seedRatings();
+    console.log('');
+
     // Final summary
     console.log('🎉 ===== SEEDING COMPLETED SUCCESSFULLY ===== 🎉\n');
 
@@ -42,6 +48,7 @@ async function main() {
     console.log(`✅ Amenities: ${results.amenities?.created || 0} processed`);
     console.log(`✅ Users: ${results.users?.created || 0} created`);
     console.log(`✅ Properties: ${results.properties?.created || 0} created`);
+    console.log(`✅ Ratings: ${results.ratings?.created || 0} created`);
 
     console.log('\n🔑 Demo Credentials (password: password123):');
     console.log('   Admin: admin@rentverse.com');

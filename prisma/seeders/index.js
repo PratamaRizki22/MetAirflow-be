@@ -4,6 +4,7 @@ module.exports = {
   seedAmenities: require('./amenities').seedAmenities,
   seedUsers: require('./users').seedUsers,
   seedProperties: require('./properties').seedProperties,
+  seedRatings: require('./ratings').seedRatings,
 
   // Cleanup functions
   cleanupPropertyTypes: require('./propertyTypes').cleanupPropertyTypes,

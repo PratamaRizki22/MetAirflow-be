@@ -732,52 +732,24 @@ class BookingsService {
         success: true,
         message: 'Rental agreement PDF retrieved successfully',
         data: {
-          bookingId: bookingId,
+          bookingId: booking.id,
           status: booking.status,
           property: {
-            id: booking.property.id,
             title: booking.property.title,
             address: booking.property.address,
+            city: booking.property.city,
           },
           pdf: {
-            url: pdfResult.data.pdfUrl,
-            fileName: pdfResult.data.fileName,
-            fileSize: pdfResult.data.fileSize,
-            generatedAt: pdfResult.data.generatedAt,
+            url: pdfResult.data.cloudinary?.url || pdfResult.data.url,
+            fileName:
+              pdfResult.data.fileName || `rental-agreement-${bookingId}.pdf`,
+            fileSize: pdfResult.data.cloudinary?.bytes,
+            generatedAt: pdfResult.data.createdAt,
           },
         },
       };
     } catch (error) {
-      // If PDF doesn't exist yet, try to generate it
-      if (error.message.includes('not found')) {
-        console.log('📄 PDF not found, generating rental agreement...');
-        const pdfResult =
-          await pdfGenerationService.generateAndUploadRentalAgreementPDF(
-            bookingId
-          );
-
-        return {
-          success: true,
-          message: 'Rental agreement PDF generated and retrieved successfully',
-          data: {
-            bookingId: bookingId,
-            status: booking.status,
-            property: {
-              id: booking.property.id,
-              title: booking.property.title,
-              address: booking.property.address,
-            },
-            pdf: {
-              url: pdfResult.data.cloudinary.url,
-              fileName: pdfResult.data.cloudinary.fileName,
-              fileSize: pdfResult.data.cloudinary.size,
-              generatedAt: new Date(),
-            },
-          },
-        };
-      }
-
-      throw error;
+      throw new Error(`Failed to retrieve rental agreement PDF: ${error.message}`);
     }
   }
 

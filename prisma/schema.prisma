@@ -61,10 +61,14 @@ model User {
   // Roles & Status
   isHost           Boolean           @default(false) // True if user has activated hosting mode
   
+  // Stripe Integration
+  stripeCustomerId String?           @unique
+  
   leasesAsLandlord Lease[]           @relation("LandlordLeases")
   leasesAsTenant   Lease[]           @relation("TenantLeases")
   approvals        ListingApproval[] @relation("ReviewerApprovals")
   payments         Payment[]
+  stripePayments   StripePayment[]   @relation("UserStripePayments")
   properties       Property[]        @relation("OwnerProperties")
   propertyViews    PropertyView[]    @relation("PropertyViews")
   propertyRatings  PropertyRating[]  @relation("PropertyRatings")
@@ -167,6 +171,7 @@ model ListingApproval {
 /// Kontrak sewa jangka waktu antara landlord dan tenant.
 model Lease {
   id              String           @id @default(uuid())
+  code            String           @unique @default(cuid())
   startDate       DateTime
   endDate         DateTime
   rentAmount      Decimal          @db.Decimal(12, 2)
@@ -174,7 +179,19 @@ model Lease {
   securityDeposit Decimal?         @db.Decimal(12, 2)
   status          LeaseStatus      @default(PENDING)
   notes           String?          // Catatan dari user saat booking
+  message         String?          // Message to landlord when booking
   hasReview       Boolean          @default(false) // Track if tenant has reviewed
+  
+  // Payment tracking
+  paymentStatus   String           @default("pending") // pending, paid, refunded
+  totalPrice      Decimal          @db.Decimal(12, 2) @default(0)
+  
+  // Approval/rejection tracking
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  cancelledAt     DateTime?
+  cancellationReason String?
   
   // Digital signature fields
   tenantSignatureUrl  String?      // URL to tenant's signature image
@@ -187,6 +204,7 @@ model Lease {
   tenantId        String
   landlordId      String
   invoices        Invoice[]
+  stripePayments  StripePayment[]  @relation("LeaseStripePayments")
   landlord        User             @relation("LandlordLeases", fields: [landlordId], references: [id])
   property        Property         @relation(fields: [propertyId], references: [id])
   tenant          User             @relation("TenantLeases", fields: [tenantId], references: [id])
@@ -196,6 +214,7 @@ model Lease {
   @@index([propertyId, status])
   @@index([tenantId])
   @@index([landlordId])
+  @@index([code])
   @@map("leases")
 }
 
@@ -405,4 +424,28 @@ enum PaymentStatus {
   COMPLETED
   FAILED
   REFUNDED
+}
+
+/// Stripe payment tracking untuk mobile payment integration
+model StripePayment {
+  id               String    @id @default(uuid())
+  bookingId        String    // Lease ID (bookingId in mobile context)
+  userId           String
+  amount           Decimal   @db.Decimal(12, 2)
+  currency         String    @default("myr")
+  paymentIntentId  String?   @unique
+  status           String    @default("pending") // pending, processing, completed, failed, refunded, canceled, requires_action
+  completedAt      DateTime?
+  refundedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  booking          Lease     @relation("LeaseStripePayments", fields: [bookingId], references: [id], onDelete: Cascade)
+  user             User      @relation("UserStripePayments", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([userId])
+  @@index([paymentIntentId])
+  @@index([status])
+  @@map("stripe_payments")
 }

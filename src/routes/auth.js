@@ -130,6 +130,10 @@ router.post(
       .isISO8601()
       .withMessage('Date of birth must be a valid date'),
     body('phone').optional().trim(),
+    body('role')
+      .optional()
+      .isIn(['USER', 'LANDLORD'])
+      .withMessage('Role must be either USER or LANDLORD'),
   ],
   async (req, res) => {
     try {
@@ -142,7 +146,7 @@ router.post(
         });
       }
 
-      const { email, password, firstName, lastName, dateOfBirth, phone } =
+      const { email, password, firstName, lastName, dateOfBirth, phone, role } =
         req.body;
 
       // Check if user already exists
@@ -163,7 +167,11 @@ router.post(
       // Create full name for backward compatibility
       const fullName = `${firstName} ${lastName}`;
 
-      // Create user with USER role
+      // Set isHost based on role or default
+      const userRole = role || 'USER';
+      const isHost = userRole === 'LANDLORD';
+
+      // Create user
       const user = await prisma.user.create({
         data: {
           email,
@@ -174,6 +182,7 @@ router.post(
           dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
           phone: phone || null,
           role: 'USER',
+          isHost: isHost, // Auto-enable host mode for landlords
         },
         select: {
           id: true,
@@ -184,6 +193,7 @@ router.post(
           dateOfBirth: true,
           phone: true,
           role: true,
+          isHost: true,
           isActive: true,
           createdAt: true,
         },

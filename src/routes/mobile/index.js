@@ -15,6 +15,7 @@ const propertyTypesRoutes = require('./propertyTypes');
 const amenitiesRoutes = require('./amenities');
 const uploadRoutes = require('./upload');
 const paymentsRoutes = require('./payments');
+const agreementsRoutes = require('../../modules/agreements/agreements.routes');
 const reviewsRoutes = require('../../modules/reviews/reviews.routes');
 
 // Mount routes
@@ -26,6 +27,7 @@ router.use('/property-types', propertyTypesRoutes);
 router.use('/amenities', amenitiesRoutes);
 router.use('/upload', uploadRoutes);
 router.use('/payments', paymentsRoutes);
+router.use('/agreements', agreementsRoutes);
 router.use('/', reviewsRoutes); // Reviews routes (includes /reviews and /properties/:id/reviews)
 
 /**

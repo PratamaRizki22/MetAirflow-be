@@ -8,8 +8,113 @@
 const express = require('express');
 const { auth, optionalAuth } = require('../../middleware/auth');
 const { prisma } = require('../../config/database');
+const propertiesService = require('../../modules/properties/properties.service');
 
 const router = express.Router();
+
+// Create property (Landlord/Admin only)
+router.post('/', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'LANDLORD' && req.user.role !== 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only landlords and admins can create properties',
+      });
+    }
+
+    const property = await propertiesService.createProperty(req.body, req.user.id);
+
+    res.status(201).json({
+      success: true,
+      message: 'Property created successfully',
+      data: { property },
+    });
+  } catch (error) {
+    console.error('Create property error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create property',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+// Update property (Landlord/Admin only)
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const property = await propertiesService.updateProperty(id, req.body, req.user);
+
+    res.json({
+      success: true,
+      message: 'Property updated successfully',
+      data: { property },
+    });
+  } catch (error) {
+    console.error('Update property error:', error);
+    const status = error.message.includes('not found') ? 404 :
+      error.message.includes('Access denied') ? 403 : 500;
+    res.status(status).json({
+      success: false,
+      message: error.message || 'Failed to update property',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+// Delete property (Landlord/Admin only)
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await propertiesService.deleteProperty(id, req.user);
+
+    res.json({
+      success: true,
+      message: 'Property deleted successfully',
+    });
+  } catch (error) {
+    console.error('Delete property error:', error);
+    const status = error.message.includes('not found') ? 404 :
+      error.message.includes('Access denied') ? 403 : 500;
+    res.status(status).json({
+      success: false,
+      message: error.message || 'Failed to delete property',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+// Get my properties (Landlord only)
+router.get('/my', auth, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const filters = {
+      status: req.query.status,
+      isAvailable: req.query.isAvailable,
+      search: req.query.search,
+    };
+
+    const result = await propertiesService.getMyProperties(
+      req.user.id,
+      page,
+      limit,
+      filters
+    );
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error('Get my properties error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get properties',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
 
 /**
  * @swagger
@@ -638,7 +743,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
               },
             },
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { ratedAt: 'desc' },
           take: 10,
         },
         _count: {
@@ -660,21 +765,17 @@ router.get('/:id', optionalAuth, async (req, res) => {
 
     // Record view
     if (req.user) {
-      await prisma.propertyView.upsert({
-        where: {
-          propertyId_viewerId: {
+      try {
+        await prisma.propertyView.create({
+          data: {
             propertyId: id,
-            viewerId: req.user.id,
+            userId: req.user.id,
           },
-        },
-        update: {
-          viewedAt: new Date(),
-        },
-        create: {
-          propertyId: id,
-          viewerId: req.user.id,
-        },
-      });
+        });
+      } catch (viewError) {
+        // Silently fail - view tracking is not critical
+        console.log('View tracking failed:', viewError.message);
+      }
     }
 
     // Check if favorited
@@ -906,6 +1007,86 @@ router.post('/:id/rate', auth, async (req, res) => {
     });
   }
 });
+
+/**
+ * @swagger
+ * /api/v1/m/properties/{id}/rating:
+ *   get:
+ *     summary: Get property rating summary (Mobile)
+ *     tags: [Mobile - Properties]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Rating summary retrieved successfully
+ *       404:
+ *         description: Property not found
+ */
+router.get('/:id/rating', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if property exists
+    const property = await prisma.property.findUnique({
+      where: { id },
+    });
+
+    if (!property) {
+      return res.status(404).json({
+        success: false,
+        message: 'Property not found',
+      });
+    }
+
+    // Get average rating and total reviews
+    const avgRating = await prisma.propertyRating.aggregate({
+      where: { propertyId: id },
+      _avg: { rating: true },
+      _count: { rating: true },
+    });
+
+    // Get rating distribution
+    const ratings = await prisma.propertyRating.groupBy({
+      by: ['rating'],
+      where: { propertyId: id },
+      _count: { rating: true },
+    });
+
+    // Build rating distribution object
+    const ratingDistribution = {
+      1: 0,
+      2: 0,
+      3: 0,
+      4: 0,
+      5: 0,
+    };
+
+    ratings.forEach(r => {
+      ratingDistribution[r.rating] = r._count.rating;
+    });
+
+    res.json({
+      success: true,
+      data: {
+        averageRating: avgRating._avg.rating || 0,
+        totalReviews: avgRating._count.rating || 0,
+        ratingDistribution,
+      },
+    });
+  } catch (error) {
+    console.error('Get property rating error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get property rating',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
 
 /**
  * @swagger
