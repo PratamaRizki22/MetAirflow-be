@@ -1,9 +1,11 @@
-name: Deploy Core Service
+name: Deploy Backend to Server
 
 on:
   push:
     branches:
+      - master
       - main
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -12,33 +14,40 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Copy files via SCP
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
-          port: 22
-          source: '.'
-          target: '~/rentverse-core-service'
-          rm: true # Clean target directory before copy
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh/
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          cat >>~/.ssh/config <<END
+          Host target
+            HostName $SERVER_HOST
+            User $SERVER_USER
+            IdentityFile ~/.ssh/id_rsa
+            StrictHostKeyChecking no
+          END
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
-          port: 22
-          script: |
-            cd ~/rentverse-core-service
+      - name: Deploy to Server
+        run: |
+          # Create target directory if not exists
+          ssh target "mkdir -p rentverse-core-service"
 
-            # Create .env file from secrets
-            echo "${{ secrets.ENV_FILE }}" > .env
+          # Transfer files using tar over ssh (exclude node_modules, .git, .env)
+          # We prefer tar over scp for speed and preserving permissions
+          tar -czf - --exclude='.git' --exclude='node_modules' --exclude='.env' --exclude='.github' . | ssh target "tar -xzf - -C rentverse-core-service"
 
-            # Build and restart containers
-            docker compose down
-            docker compose up -d --build
-
-            # Prune unused images
-            docker image prune -f
+      - name: Build and Restart Backend
+        run: |
+          ssh target "cd rentverse-core-service && \
+          echo 'Building new image...' && \
+          docker compose build app --no-cache && \
+          echo 'Applying database schema...' && \
+          docker compose run --rm app npx prisma db push && \
+          echo 'Restarting backend...' && \
+          docker compose up -d app && \
+          echo 'Pruning old images...' && \
+          docker image prune -f"
