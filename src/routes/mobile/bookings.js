@@ -74,15 +74,6 @@ router.get('/', auth, async (req, res) => {
       limit
     );
 
-    // Verify prisma is available
-    if (!prisma) {
-      console.error('❌ Prisma client not available!');
-      return res.status(503).json({
-        success: false,
-        message: 'Database service unavailable',
-      });
-    }
-
     const where =
       role === 'landlord'
         ? { landlordId: req.user.id }

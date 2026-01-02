@@ -106,25 +106,37 @@ class PredictionsController {
 
       // Handle specific error cases
       if (error.code === 'ECONNREFUSED') {
-        return res.status(502).json({
+        return res.status(503).json({
           success: false,
           message:
             'ML prediction service is unavailable. Please try again later.',
-          error: 'Connection refused',
+          error: 'AI service connection failed',
         });
       }
 
       if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
-        return res.status(504).json({
+        return res.status(503).json({
           success: false,
           message: 'Prediction request timed out. Please try again.',
-          error: 'Timeout',
+          error: 'Request timeout',
         });
       }
 
-      res.status(error.response?.status || 500).json({
+      // Network errors
+      if (error.code === 'ENOTFOUND' || error.code === 'EAI_AGAIN') {
+        return res.status(503).json({
+          success: false,
+          message:
+            'ML prediction service is unavailable. Please try again later.',
+          error: 'AI service not reachable',
+        });
+      }
+
+      res.status(error.response?.status || 503).json({
         success: false,
-        message: error.response?.data?.message || 'Failed to get prediction',
+        message:
+          error.response?.data?.message ||
+          'ML prediction service is unavailable. Please try again later.',
         error: error.response?.data || error.message,
       });
     }
