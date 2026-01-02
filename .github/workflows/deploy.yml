@@ -76,14 +76,14 @@ jobs:
         run: |
           ssh target "docker network connect rentverse-network rentverse-ai-service-rentverse-ai-1 2>&1 || echo '✅ AI service already connected to rentverse-network'"
 
-      - name: Build and Restart Backend
+      - name: Build and Restart All Services
         run: |
           ssh target "cd rentverse-core-service && \
           echo 'Building new image...' && \
           docker compose build app --no-cache && \
           echo 'Applying database schema...' && \
           docker compose run --rm app npx prisma db push && \
-          echo 'Restarting backend...' && \
-          docker compose up -d app && \
+          echo 'Starting all services...' && \
+          docker compose up -d && \
           echo 'Pruning old images...' && \
           docker image prune -f"
