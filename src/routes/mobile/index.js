@@ -18,6 +18,7 @@ const paymentsRoutes = require('./payments');
 const agreementsRoutes = require('../../modules/agreements/agreements.routes');
 const reviewsRoutes = require('../../modules/reviews/reviews.routes');
 const predictionsRoutes = require('../../modules/predictions/predictions.routes');
+const collectionsRoutes = require('./collections');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -30,6 +31,7 @@ router.use('/upload', uploadRoutes);
 router.use('/payments', paymentsRoutes);
 router.use('/agreements', agreementsRoutes);
 router.use('/predictions', predictionsRoutes);
+router.use('/collections', collectionsRoutes);
 router.use('/', reviewsRoutes); // Reviews routes (includes /reviews and /properties/:id/reviews)
 
 /**
@@ -71,6 +73,7 @@ router.get('/', (req, res) => {
       upload: '/api/v1/m/upload',
       payments: '/api/v1/m/payments',
       reviews: '/api/v1/m/reviews',
+      collections: '/api/v1/m/collections',
     },
   });
 });
