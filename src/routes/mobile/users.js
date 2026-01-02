@@ -520,4 +520,346 @@ router.get('/bookings', auth, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/v1/m/users/{id}/profile:
+ *   get:
+ *     summary: Get public landlord profile (Mobile)
+ *     tags: [Mobile - Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User/Landlord ID
+ *     responses:
+ *       200:
+ *         description: Landlord profile retrieved successfully
+ *       404:
+ *         description: User not found
+ */
+router.get('/:id/profile', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get user basic info
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        name: true,
+        email: true,
+        phone: true,
+        profilePicture: true,
+        isHost: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Get property count
+    const propertyCount = await prisma.property.count({
+      where: {
+        ownerId: id,
+        status: 'APPROVED',
+        isAvailable: true,
+      },
+    });
+
+    // Get completed bookings count
+    const completedBookingsCount = await prisma.lease.count({
+      where: {
+        landlordId: id,
+        status: 'COMPLETED',
+      },
+    });
+
+    // Calculate average rating from all reviews of landlord's properties
+    const reviews = await prisma.review.findMany({
+      where: {
+        property: {
+          ownerId: id,
+        },
+      },
+      select: {
+        rating: true,
+      },
+    });
+
+    const averageRating =
+      reviews.length > 0
+        ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+        : null;
+
+    res.json({
+      success: true,
+      data: {
+        user,
+        stats: {
+          propertyCount,
+          completedBookingsCount,
+          averageRating,
+          reviewCount: reviews.length,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Get landlord profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get landlord profile',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/v1/m/users/{id}/properties:
+ *   get:
+ *     summary: Get landlord's active properties (Mobile)
+ *     tags: [Mobile - Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Landlord ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Properties retrieved successfully
+ *       404:
+ *         description: User not found
+ */
+router.get('/:id/properties', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Get landlord's properties
+    const [properties, total] = await Promise.all([
+      prisma.property.findMany({
+        where: {
+          ownerId: id,
+          status: 'APPROVED',
+          isAvailable: true,
+        },
+        include: {
+          propertyType: true,
+          amenities: {
+            include: {
+              amenity: true,
+            },
+          },
+          _count: {
+            select: {
+              ratings: true,
+            },
+          },
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.property.count({
+        where: {
+          ownerId: id,
+          status: 'APPROVED',
+          isAvailable: true,
+        },
+      }),
+    ]);
+
+    // Calculate average rating for each property
+    const propertiesWithRatings = await Promise.all(
+      properties.map(async property => {
+        const ratings = await prisma.propertyRating.findMany({
+          where: { propertyId: property.id },
+          select: { rating: true },
+        });
+
+        const averageRating =
+          ratings.length > 0
+            ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length
+            : null;
+
+        return {
+          ...property,
+          averageRating,
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      data: {
+        properties: propertiesWithRatings,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Get landlord properties error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get landlord properties',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/v1/m/users/{id}/testimonials:
+ *   get:
+ *     summary: Get landlord testimonials from completed bookings (Mobile)
+ *     tags: [Mobile - Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Landlord ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Testimonials retrieved successfully
+ *       404:
+ *         description: User not found
+ */
+router.get('/:id/testimonials', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Get reviews from completed bookings for landlord's properties
+    const [testimonials, total] = await Promise.all([
+      prisma.review.findMany({
+        where: {
+          property: {
+            ownerId: id,
+          },
+          lease: {
+            status: 'COMPLETED',
+          },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              profilePicture: true,
+            },
+          },
+          property: {
+            select: {
+              id: true,
+              title: true,
+              images: true,
+            },
+          },
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.review.count({
+        where: {
+          property: {
+            ownerId: id,
+          },
+          lease: {
+            status: 'COMPLETED',
+          },
+        },
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        testimonials,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Get landlord testimonials error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get landlord testimonials',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
 module.exports = router;
