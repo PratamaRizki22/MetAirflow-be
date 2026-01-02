@@ -50,6 +50,12 @@ const router = express.Router();
  */
 router.get('/', auth, async (req, res) => {
   try {
+    console.log('🔵 Bookings endpoint hit:', {
+      userId: req.user?.id,
+      query: req.query,
+      timestamp: new Date().toISOString(),
+    });
+
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
@@ -61,8 +67,21 @@ router.get('/', auth, async (req, res) => {
       'Role:',
       role,
       'Status:',
-      status
+      status,
+      'Page:',
+      page,
+      'Limit:',
+      limit
     );
+
+    // Verify prisma is available
+    if (!prisma) {
+      console.error('❌ Prisma client not available!');
+      return res.status(503).json({
+        success: false,
+        message: 'Database service unavailable',
+      });
+    }
 
     const where =
       role === 'landlord'
@@ -76,6 +95,7 @@ router.get('/', auth, async (req, res) => {
     if (status) where.status = status;
 
     console.log('🔍 Query where:', JSON.stringify(where));
+    console.log('📊 Query params - Skip:', skip, 'Take:', limit);
 
     const [bookings, total] = await Promise.all([
       prisma.lease.findMany({
@@ -131,7 +151,7 @@ router.get('/', auth, async (req, res) => {
       });
     }
 
-    res.json({
+    const response = {
       success: true,
       data: {
         bookings,
@@ -142,9 +162,22 @@ router.get('/', auth, async (req, res) => {
           totalPages: Math.ceil(total / limit),
         },
       },
+    };
+
+    console.log('✅ Sending response:', {
+      success: response.success,
+      bookingsCount: bookings.length,
+      total,
     });
+
+    res.json(response);
   } catch (error) {
-    console.error('❌ Get bookings error:', error);
+    console.error('❌ Get bookings error:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      name: error.name,
+    });
     res.status(500).json({
       success: false,
       message: 'Failed to get bookings',
