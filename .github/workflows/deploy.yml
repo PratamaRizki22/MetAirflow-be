@@ -62,6 +62,20 @@ jobs:
           # We prefer tar over scp for speed and preserving permissions
           tar -czf - --exclude='.git' --exclude='node_modules' --exclude='.env' --exclude='.github' . | ssh target "tar -xzf - -C rentverse-core-service"
 
+      - name: Setup Environment Variables
+        run: |
+          ssh target "cd rentverse-core-service && \
+          if ! grep -q 'AI_SERVICE_URL' .env 2>/dev/null; then \
+            echo 'AI_SERVICE_URL=http://rentverse-ai-service-rentverse-ai-1:8000' >> .env && \
+            echo '✅ Added AI_SERVICE_URL to .env'; \
+          else \
+            echo '✅ AI_SERVICE_URL already exists in .env'; \
+          fi"
+
+      - name: Connect AI Service to Backend Network
+        run: |
+          ssh target "docker network connect rentverse-network rentverse-ai-service-rentverse-ai-1 2>&1 || echo '✅ AI service already connected to rentverse-network'"
+
       - name: Build and Restart Backend
         run: |
           ssh target "cd rentverse-core-service && \
