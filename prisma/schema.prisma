@@ -73,6 +73,7 @@ model User {
   propertyViews    PropertyView[]    @relation("PropertyViews")
   propertyRatings  PropertyRating[]  @relation("PropertyRatings")
   propertyFavorites PropertyFavorite[] @relation("PropertyFavorites")
+  favoriteCollections FavoriteCollection[] @relation("UserCollections")
   reviews          Review[]          @relation("UserReviews")
 
   @@map("users")
@@ -332,6 +333,21 @@ model PropertyFavorite {
   @@index([userId])
   @@index([userId, favoritedAt]) // For user's favorites list ordered by date
   @@map("property_favorites")
+}
+
+/// Custom collections/wishlists created by users to organize their favorite properties.
+model FavoriteCollection {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String   // Collection name (max 20 chars enforced in app)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user      User     @relation("UserCollections", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([userId, createdAt]) // For user's collections list ordered by date
+  @@map("favorite_collections")
 }
 
 /// Review dan rating property oleh tenant setelah menyelesaikan booking/lease.

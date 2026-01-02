@@ -26,6 +26,7 @@ Aplikasi ini membutuhkan PostgreSQL dengan ekstensi **PostGIS**.
 Kami telah menyiapkan service database otomatis di dalam `docker-compose.yml` yang menggunakan image `postgis/postgis:15-3.4-alpine`.
 
 **Apa yang terjadi secara otomatis:**
+
 - Container database (`rentverse-db`) akan dibuat.
 - Extension PostGIS akan diaktifkan.
 - Schema database akan di-push otomatis oleh Prisma saat container aplikasi berjalan.
@@ -39,6 +40,7 @@ docker-compose up -d --build
 ```
 
 Proses ini akan menjalankan:
+
 1.  🐘 **Database**: PostgreSQL dengan PostGIS port `5432` (internal)
 2.  📱 **Backend API**: Node.js server port `3000`
 3.  � **Prisma Studio**: Database GUI port `5555`

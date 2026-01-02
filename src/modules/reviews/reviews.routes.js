@@ -2,8 +2,8 @@ const express = require('express');
 const { auth } = require('../../middleware/auth');
 const reviewsController = require('./reviews.controller');
 const {
-    createReviewValidation,
-    updateReviewValidation,
+  createReviewValidation,
+  updateReviewValidation,
 } = require('./reviews.validation');
 
 const router = express.Router();
@@ -155,10 +155,10 @@ router.get('/my-reviews', auth, reviewsController.getUserReviews);
  *         description: Review not found
  */
 router.put(
-    '/:reviewId',
-    auth,
-    updateReviewValidation,
-    reviewsController.updateReview
+  '/:reviewId',
+  auth,
+  updateReviewValidation,
+  reviewsController.updateReview
 );
 
 /**
@@ -219,8 +219,8 @@ router.delete('/:reviewId', auth, reviewsController.deleteReview);
  *         description: Property reviews retrieved successfully
  */
 router.get(
-    '/properties/:propertyId/reviews',
-    reviewsController.getPropertyReviews
+  '/properties/:propertyId/reviews',
+  reviewsController.getPropertyReviews
 );
 
 /**
@@ -241,8 +241,8 @@ router.get(
  *         description: Property rating retrieved successfully
  */
 router.get(
-    '/properties/:propertyId/rating',
-    reviewsController.getPropertyRating
+  '/properties/:propertyId/rating',
+  reviewsController.getPropertyRating
 );
 
 /**
@@ -267,9 +267,9 @@ router.get(
  *         description: Unauthorized
  */
 router.get(
-    '/properties/:propertyId/can-review',
-    auth,
-    reviewsController.canReview
+  '/properties/:propertyId/can-review',
+  auth,
+  reviewsController.canReview
 );
 
 module.exports = router;

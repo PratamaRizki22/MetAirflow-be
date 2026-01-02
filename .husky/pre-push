@@ -24,7 +24,7 @@ printf "${BLUE}└────────────────────�
 printf "${YELLOW}⏳ Running ESLint and Prettier checks...${NC}\n"
 printf "\n"
 
-pnpm run code:check
+npx pnpm run code:check
 
 if [ $? -ne 0 ]; then
   printf "\n"
@@ -52,7 +52,7 @@ printf "${BLUE}└────────────────────�
 printf "${YELLOW}⏳ Scanning for security vulnerabilities...${NC}\n"
 printf "\n"
 
-pnpm run security:check
+npx pnpm run security:check
 
 if [ $? -ne 0 ]; then
   printf "\n"

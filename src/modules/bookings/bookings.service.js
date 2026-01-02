@@ -749,7 +749,9 @@ class BookingsService {
         },
       };
     } catch (error) {
-      throw new Error(`Failed to retrieve rental agreement PDF: ${error.message}`);
+      throw new Error(
+        `Failed to retrieve rental agreement PDF: ${error.message}`
+      );
     }
   }
 
@@ -863,7 +865,7 @@ class BookingsService {
    */
   async uploadTenantSignature(bookingId, signatureUrl, userId) {
     const booking = await prisma.lease.findUnique({
-      where: { id: bookingId }
+      where: { id: bookingId },
     });
 
     if (!booking) {
@@ -882,16 +884,16 @@ class BookingsService {
       where: { id: bookingId },
       data: {
         tenantSignatureUrl: signatureUrl,
-        signedAt: new Date()
+        signedAt: new Date(),
       },
       include: {
         property: {
           select: {
             id: true,
-            title: true
-          }
-        }
-      }
+            title: true,
+          },
+        },
+      },
     });
 
     return updated;

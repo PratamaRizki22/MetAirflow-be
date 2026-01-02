@@ -6,7 +6,6 @@ const bcrypt = require('bcryptjs');
 const axios = require('axios');
 const { prisma } = require('./database');
 
-
 // Serialize user for session
 passport.serializeUser((user, done) => {
   done(null, user.id);

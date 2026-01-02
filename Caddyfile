@@ -14,7 +14,8 @@
 }
 
 # Production domain with Cloudflare DNS
-rentverse-backend.jekoyu.dev {
+# Production domain (Dynu DDNS)
+rentverse-api.loseyourip.com {
     # Automatic HTTPS via Let's Encrypt
     # Cloudflare DNS challenge (optional - more reliable with Cloudflare)
     # Uncomment if you want to use DNS challenge:

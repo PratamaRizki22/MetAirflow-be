@@ -1347,14 +1347,14 @@ class PropertiesService {
         OR: [
           { AND: [{ startDate: { lte: start } }, { endDate: { gte: start } }] },
           { AND: [{ startDate: { lte: end } }, { endDate: { gte: end } }] },
-          { AND: [{ startDate: { gte: start } }, { endDate: { lte: end } }] }
-        ]
-      }
+          { AND: [{ startDate: { gte: start } }, { endDate: { lte: end } }] },
+        ],
+      },
     });
 
     return {
       available: conflicts.length === 0,
-      conflictingBookings: conflicts
+      conflictingBookings: conflicts,
     };
   }
 }
