@@ -58,7 +58,11 @@ router.get('/', auth, async (req, res) => {
     const where =
       role === 'landlord'
         ? { landlordId: req.user.id }
-        : { tenantId: req.user.id };
+        : {
+            tenantId: req.user.id,
+            // Only show bookings that have been paid by tenant
+            paymentStatus: 'paid',
+          };
 
     if (status) where.status = status;
 
@@ -182,7 +186,6 @@ router.get('/:id', auth, async (req, res) => {
             email: true,
           },
         },
-        rentalAgreement: true,
       },
     });
 
