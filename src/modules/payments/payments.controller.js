@@ -54,6 +54,14 @@ exports.confirmPayment = catchAsync(async (req, res) => {
  * GET /api/v1/m/payments/history
  */
 exports.getPaymentHistory = catchAsync(async (req, res) => {
+  console.log('🔍 Payment history request:', {
+    userId: req.user.id,
+    query: req.query,
+    headers: {
+      authorization: req.headers.authorization ? 'Present' : 'Missing',
+    },
+  });
+
   const userId = req.user.id;
   const { page, limit, status } = req.query;
 
@@ -61,6 +69,12 @@ exports.getPaymentHistory = catchAsync(async (req, res) => {
     page: parseInt(page) || 1,
     limit: parseInt(limit) || 10,
     status,
+  });
+
+  console.log('✅ Payment history result:', {
+    userId,
+    paymentsCount: result.payments?.length || 0,
+    pagination: result.pagination,
   });
 
   res.status(200).json({

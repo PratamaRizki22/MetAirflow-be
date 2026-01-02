@@ -233,12 +233,21 @@ class PaymentService {
    */
   async getPaymentHistory(userId, { page = 1, limit = 10, status }) {
     try {
+      console.log('📊 Getting payment history:', {
+        userId,
+        page,
+        limit,
+        status,
+      });
+
       const skip = (page - 1) * limit;
       const where = { userId };
 
       if (status) {
         where.status = status;
       }
+
+      console.log('🔍 Payment history query where:', where);
 
       const [payments, total] = await Promise.all([
         prisma.stripePayment.findMany({
@@ -264,6 +273,12 @@ class PaymentService {
         prisma.stripePayment.count({ where }),
       ]);
 
+      console.log('✅ Payment history found:', {
+        paymentsCount: payments.length,
+        total,
+        firstPaymentId: payments[0]?.id,
+      });
+
       return {
         payments,
         pagination: {
@@ -274,7 +289,11 @@ class PaymentService {
         },
       };
     } catch (error) {
-      console.error('Get payment history error:', error);
+      console.error('❌ Get payment history error:', {
+        userId,
+        error: error.message,
+        stack: error.stack,
+      });
       throw new AppError('Failed to get payment history', 500);
     }
   }
