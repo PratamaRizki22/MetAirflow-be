@@ -22,7 +22,10 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
-    const property = await propertiesService.createProperty(req.body, req.user.id);
+    const property = await propertiesService.createProperty(
+      req.body,
+      req.user.id
+    );
 
     res.status(201).json({
       success: true,
@@ -43,7 +46,11 @@ router.post('/', auth, async (req, res) => {
 router.put('/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
-    const property = await propertiesService.updateProperty(id, req.body, req.user);
+    const property = await propertiesService.updateProperty(
+      id,
+      req.body,
+      req.user
+    );
 
     res.json({
       success: true,
@@ -52,8 +59,11 @@ router.put('/:id', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Update property error:', error);
-    const status = error.message.includes('not found') ? 404 :
-      error.message.includes('Access denied') ? 403 : 500;
+    const status = error.message.includes('not found')
+      ? 404
+      : error.message.includes('Access denied')
+        ? 403
+        : 500;
     res.status(status).json({
       success: false,
       message: error.message || 'Failed to update property',
@@ -74,8 +84,11 @@ router.delete('/:id', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Delete property error:', error);
-    const status = error.message.includes('not found') ? 404 :
-      error.message.includes('Access denied') ? 403 : 500;
+    const status = error.message.includes('not found')
+      ? 404
+      : error.message.includes('Access denied')
+        ? 403
+        : 500;
     res.status(status).json({
       success: false,
       message: error.message || 'Failed to delete property',
@@ -1087,7 +1100,6 @@ router.get('/:id/rating', async (req, res) => {
   }
 });
 
-
 /**
  * @swagger
  * /api/v1/m/properties/nearby:
@@ -1205,9 +1217,9 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRad(lat1)) *
-    Math.cos(toRad(lat2)) *
-    Math.sin(dLon / 2) *
-    Math.sin(dLon / 2);
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
@@ -1225,7 +1237,7 @@ router.get('/:propertyId/availability', async (req, res) => {
     if (!startDate || !endDate) {
       return res.status(400).json({
         success: false,
-        message: 'startDate and endDate are required'
+        message: 'startDate and endDate are required',
       });
     }
 
@@ -1242,7 +1254,7 @@ router.get('/:propertyId/availability', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to check availability',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 });

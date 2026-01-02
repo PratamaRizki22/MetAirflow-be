@@ -9,9 +9,9 @@ const paymentController = require('../modules/payments/payments.controller');
  * @note    This endpoint should use raw body parser, not JSON parser
  */
 router.post(
-    '/stripe',
-    express.raw({ type: 'application/json' }),
-    paymentController.handleWebhook
+  '/stripe',
+  express.raw({ type: 'application/json' }),
+  paymentController.handleWebhook
 );
 
 module.exports = router;

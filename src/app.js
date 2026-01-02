@@ -41,12 +41,13 @@ app.use((req, res, next) => {
 connectDB();
 
 // Middleware
-app.use(
-  helmet({
-    crossOriginEmbedderPolicy: false,
-    crossOriginResourcePolicy: { policy: 'cross-origin' },
-  })
-);
+// app.use(
+//   helmet({
+//     contentSecurityPolicy: false,
+//     crossOriginEmbedderPolicy: false,
+//     crossOriginResourcePolicy: { policy: 'cross-origin' },
+//   })
+// );
 
 // Simple CORS configuration - allow everything in development
 app.use(

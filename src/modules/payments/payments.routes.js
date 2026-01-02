@@ -8,7 +8,11 @@ const { authenticate } = require('../../middleware/auth');
  * @desc    Create Payment Sheet for mobile app
  * @access  Private
  */
-router.post('/payment-sheet', authenticate, paymentController.createPaymentSheet);
+router.post(
+  '/payment-sheet',
+  authenticate,
+  paymentController.createPaymentSheet
+);
 
 /**
  * @route   POST /api/v1/m/payments/confirm

@@ -17,6 +17,7 @@ const uploadRoutes = require('./upload');
 const paymentsRoutes = require('./payments');
 const agreementsRoutes = require('../../modules/agreements/agreements.routes');
 const reviewsRoutes = require('../../modules/reviews/reviews.routes');
+const predictionsRoutes = require('../../modules/predictions/predictions.routes');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -28,6 +29,7 @@ router.use('/amenities', amenitiesRoutes);
 router.use('/upload', uploadRoutes);
 router.use('/payments', paymentsRoutes);
 router.use('/agreements', agreementsRoutes);
+router.use('/predictions', predictionsRoutes);
 router.use('/', reviewsRoutes); // Reviews routes (includes /reviews and /properties/:id/reviews)
 
 /**
