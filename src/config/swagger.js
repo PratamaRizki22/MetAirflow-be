@@ -19,7 +19,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: 'https://rentverse-api.loseyourip.com/api',
+        url: 'https://rentverse-api.loseyourip.com',
         description: 'Production server',
       },
       {
