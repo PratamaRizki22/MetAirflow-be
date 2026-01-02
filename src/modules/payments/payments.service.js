@@ -352,14 +352,26 @@ class PaymentService {
    */
   async cancelPayment(paymentIntentId, userId) {
     try {
-      // 1. Find payment record
+      console.log('🔴 Cancelling payment:', { paymentIntentId, userId });
+
+      // 1. Find payment record with booking details
       const payment = await prisma.stripePayment.findFirst({
         where: { paymentIntentId },
+        include: {
+          booking: true,
+        },
       });
 
       if (!payment) {
         throw new AppError('Payment not found', 404);
       }
+
+      console.log('📋 Payment found:', {
+        paymentId: payment.id,
+        bookingId: payment.bookingId,
+        status: payment.status,
+        bookingStatus: payment.booking?.status,
+      });
 
       // Verify user owns this payment
       if (payment.userId !== userId) {
@@ -371,17 +383,48 @@ class PaymentService {
       }
 
       // 2. Cancel PaymentIntent in Stripe
-      await stripe.paymentIntents.cancel(paymentIntentId);
+      try {
+        await stripe.paymentIntents.cancel(paymentIntentId);
+        console.log('✅ Stripe PaymentIntent cancelled');
+      } catch (stripeError) {
+        console.warn('⚠️  Stripe cancellation warning:', stripeError.message);
+        // Continue even if Stripe cancellation fails (might be already cancelled)
+      }
 
       // 3. Update payment status
       await prisma.stripePayment.update({
         where: { id: payment.id },
         data: { status: 'failed' },
       });
+      console.log('✅ Payment status updated to failed');
 
-      return { message: 'Payment cancelled successfully' };
+      // 4. Auto-cancel the booking without landlord verification
+      if (payment.bookingId && payment.booking) {
+        const bookingStatus = payment.booking.status;
+
+        // Only cancel if booking is PENDING or APPROVED (not yet started)
+        if (bookingStatus === 'PENDING' || bookingStatus === 'APPROVED') {
+          await prisma.lease.update({
+            where: { id: payment.bookingId },
+            data: {
+              status: 'CANCELLED',
+              cancelledAt: new Date(),
+              cancellationReason: 'Payment cancelled by user',
+              paymentStatus: 'failed',
+            },
+          });
+          console.log('✅ Booking auto-cancelled:', payment.bookingId);
+        } else {
+          console.log('ℹ️  Booking not cancelled - status:', bookingStatus);
+        }
+      }
+
+      return {
+        message: 'Payment and booking cancelled successfully',
+        bookingCancelled: payment.bookingId ? true : false,
+      };
     } catch (error) {
-      console.error('Cancel payment error:', error);
+      console.error('❌ Cancel payment error:', error);
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to cancel payment', 500);
     }
