@@ -19,13 +19,11 @@ jobs:
           mkdir -p ~/.ssh/
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          cat >>~/.ssh/config <<END
-          Host target
-            HostName ${SERVER_HOST}
-            User ${SERVER_USER}
-            IdentityFile ~/.ssh/id_rsa
-            StrictHostKeyChecking no
-          END
+          echo "Host target" >> ~/.ssh/config
+          echo "  HostName $SERVER_HOST" >> ~/.ssh/config
+          echo "  User $SERVER_USER" >> ~/.ssh/config
+          echo "  IdentityFile ~/.ssh/id_rsa" >> ~/.ssh/config
+          echo "  StrictHostKeyChecking no" >> ~/.ssh/config
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
