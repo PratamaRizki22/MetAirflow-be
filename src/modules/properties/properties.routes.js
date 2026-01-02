@@ -3,6 +3,7 @@ const { body } = require('express-validator');
 const { auth, authorize } = require('../../middleware/auth');
 const propertiesController = require('./properties.controller');
 const propertyViewsController = require('../propertyViews/propertyViews.controller');
+const locationsController = require('./locations.controller');
 
 const router = express.Router();
 
@@ -446,6 +447,116 @@ router.get('/', propertiesController.getAllProperties);
  *         description: Internal server error
  */
 router.get('/featured', propertiesController.getFeaturedProperties);
+
+/**
+ * @swagger
+ * /api/v1/properties/locations/popular:
+ *   get:
+ *     summary: Get popular locations with property counts
+ *     tags: [Properties]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of locations to return
+ *     responses:
+ *       200:
+ *         description: Popular locations retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       name:
+ *                         type: string
+ *                       propertyCount:
+ *                         type: integer
+ *                       latitude:
+ *                         type: number
+ *                       longitude:
+ *                         type: number
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/locations/popular', locationsController.getPopularLocations);
+
+/**
+ * @swagger
+ * /api/v1/properties/locations/states:
+ *   get:
+ *     summary: Get all unique states with property counts
+ *     tags: [Properties]
+ *     responses:
+ *       200:
+ *         description: States retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       name:
+ *                         type: string
+ *                       propertyCount:
+ *                         type: integer
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/locations/states', locationsController.getStates);
+
+/**
+ * @swagger
+ * /api/v1/properties/locations/cities:
+ *   get:
+ *     summary: Get cities for a specific state
+ *     tags: [Properties]
+ *     parameters:
+ *       - in: query
+ *         name: state
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: State name
+ *     responses:
+ *       200:
+ *         description: Cities retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       name:
+ *                         type: string
+ *                       propertyCount:
+ *                         type: integer
+ *       400:
+ *         description: State parameter is required
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/locations/cities', locationsController.getCitiesByState);
 
 /**
  * @swagger

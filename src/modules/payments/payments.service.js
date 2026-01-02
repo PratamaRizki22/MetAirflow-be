@@ -284,6 +284,8 @@ class PaymentService {
    */
   async getPaymentDetails(paymentId, userId) {
     try {
+      console.log('Getting payment details for:', { paymentId, userId });
+
       const payment = await prisma.stripePayment.findUnique({
         where: { id: paymentId },
         include: {
@@ -303,12 +305,18 @@ class PaymentService {
         },
       });
 
+      console.log('Payment found:', payment ? 'Yes' : 'No');
+
       if (!payment) {
         throw new AppError('Payment not found', 404);
       }
 
       // Verify user owns this payment
       if (payment.userId !== userId) {
+        console.log('Unauthorized access attempt:', {
+          paymentUserId: payment.userId,
+          requestUserId: userId,
+        });
         throw new AppError('Unauthorized access to payment', 403);
       }
 

@@ -55,16 +55,27 @@ router.get('/', auth, async (req, res) => {
     const skip = (page - 1) * limit;
     const { status, role = 'tenant' } = req.query;
 
+    console.log(
+      '📋 GET /bookings - User:',
+      req.user.id,
+      'Role:',
+      role,
+      'Status:',
+      status
+    );
+
     const where =
       role === 'landlord'
         ? { landlordId: req.user.id }
         : {
             tenantId: req.user.id,
-            // Only show bookings that have been paid by tenant
-            paymentStatus: 'paid',
+            // Show all bookings for tenant, including pending payments
+            // Removed the paymentStatus filter to show all bookings
           };
 
     if (status) where.status = status;
+
+    console.log('🔍 Query where:', JSON.stringify(where));
 
     const [bookings, total] = await Promise.all([
       prisma.lease.findMany({
@@ -103,6 +114,8 @@ router.get('/', auth, async (req, res) => {
       prisma.lease.count({ where }),
     ]);
 
+    console.log('✅ Found bookings:', bookings.length, 'Total:', total);
+
     res.json({
       success: true,
       data: {
@@ -116,7 +129,7 @@ router.get('/', auth, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Get bookings error:', error);
+    console.error('❌ Get bookings error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to get bookings',
