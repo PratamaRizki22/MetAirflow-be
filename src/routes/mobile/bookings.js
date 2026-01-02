@@ -116,6 +116,21 @@ router.get('/', auth, async (req, res) => {
 
     console.log('✅ Found bookings:', bookings.length, 'Total:', total);
 
+    // Debug: Log booking details for landlord mode
+    if (role === 'landlord' && bookings.length > 0) {
+      console.log('🏠 Landlord Bookings Details:');
+      bookings.forEach((b, i) => {
+        console.log(`  ${i + 1}. Property: ${b.property?.title}`);
+        console.log(
+          `     Tenant: ${b.tenant?.firstName} ${b.tenant?.lastName}`
+        );
+        console.log(`     Status: ${b.status}, Payment: ${b.paymentStatus}`);
+        console.log(
+          `     LandlordId: ${b.landlordId}, TenantId: ${b.tenantId}`
+        );
+      });
+    }
+
     res.json({
       success: true,
       data: {
@@ -486,22 +501,45 @@ router.post('/:id/cancel', auth, async (req, res) => {
     const { id } = req.params;
     const { reason } = req.body;
 
+    console.log('🔴 Cancel booking request:', {
+      bookingId: id,
+      userId: req.user.id,
+      reason,
+    });
+
     const booking = await prisma.lease.findUnique({
       where: { id },
     });
 
     if (!booking) {
+      console.log('❌ Booking not found:', id);
       return res.status(404).json({
         success: false,
         message: 'Booking not found',
       });
     }
 
+    console.log('📋 Booking found:', {
+      id: booking.id,
+      status: booking.status,
+      tenantId: booking.tenantId,
+      landlordId: booking.landlordId,
+      requestUserId: req.user.id,
+    });
+
     // Check if user is authorized
     if (
       booking.tenantId !== req.user.id &&
       booking.landlordId !== req.user.id
     ) {
+      console.log(
+        '⛔ Not authorized - User:',
+        req.user.id,
+        'Tenant:',
+        booking.tenantId,
+        'Landlord:',
+        booking.landlordId
+      );
       return res.status(403).json({
         success: false,
         message: 'Not authorized to cancel this booking',
@@ -510,6 +548,7 @@ router.post('/:id/cancel', auth, async (req, res) => {
 
     // Check if booking can be cancelled
     if (!['PENDING', 'APPROVED'].includes(booking.status)) {
+      console.log('⚠️  Cannot cancel - Status:', booking.status);
       return res.status(400).json({
         success: false,
         message: `Cannot cancel booking with status: ${booking.status}`,
@@ -533,13 +572,15 @@ router.post('/:id/cancel', auth, async (req, res) => {
       },
     });
 
+    console.log('✅ Booking cancelled successfully:', id);
+
     res.json({
       success: true,
       message: 'Booking cancelled successfully',
       data: updatedBooking,
     });
   } catch (error) {
-    console.error('Cancel booking error:', error);
+    console.error('❌ Cancel booking error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to cancel booking',

@@ -408,6 +408,7 @@ enum LeaseStatus {
   REJECTED   // Owner tolak booking
   ACTIVE     // Sewa sedang berlangsung (optional)
   COMPLETED  // Sewa sudah selesai (optional)
+  CANCELLED  // Booking dibatalkan oleh user atau landlord
 }
 
 /// Jenis invoice/tagihan dalam sewa.
