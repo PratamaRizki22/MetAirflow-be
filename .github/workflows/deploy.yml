@@ -14,6 +14,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Validate Secrets
+        run: |
+          if [ -z "$SERVER_HOST" ]; then
+            echo "❌ ERROR: SERVER_HOST secret is not set!"
+            exit 1
+          fi
+          if [ -z "$SERVER_USER" ]; then
+            echo "❌ ERROR: SERVER_USER secret is not set!"
+            exit 1
+          fi
+          if [ -z "$SSH_PRIVATE_KEY" ]; then
+            echo "❌ ERROR: SSH_PRIVATE_KEY secret is not set!"
+            exit 1
+          fi
+          echo "✅ All required secrets are set"
+          echo "Server: $SERVER_HOST"
+          echo "User: $SERVER_USER"
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+
       - name: Configure SSH
         run: |
           mkdir -p ~/.ssh/
@@ -24,6 +46,8 @@ jobs:
           echo "  User $SERVER_USER" >> ~/.ssh/config
           echo "  IdentityFile ~/.ssh/id_rsa" >> ~/.ssh/config
           echo "  StrictHostKeyChecking no" >> ~/.ssh/config
+          echo "✅ SSH config created successfully"
+          cat ~/.ssh/config
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
