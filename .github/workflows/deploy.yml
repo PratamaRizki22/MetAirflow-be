@@ -21,8 +21,8 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           cat >>~/.ssh/config <<END
           Host target
-            HostName $SERVER_HOST
-            User $SERVER_USER
+            HostName ${SERVER_HOST}
+            User ${SERVER_USER}
             IdentityFile ~/.ssh/id_rsa
             StrictHostKeyChecking no
           END
