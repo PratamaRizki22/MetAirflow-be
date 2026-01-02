@@ -19,6 +19,10 @@ const swaggerMobileOptions = {
     },
     servers: [
       {
+        url: 'https://rentverse-api.loseyourip.com',
+        description: 'Production server',
+      },
+      {
         url: `http://localhost:${process.env.PORT || 3005}`,
         description: 'Local development server',
       },
@@ -29,10 +33,6 @@ const swaggerMobileOptions = {
         description: process.env.NGROK_URL
           ? 'Ngrok tunnel server'
           : 'Development server',
-      },
-      {
-        url: 'https://rentverse-be.jokoyuliyanto.my.id',
-        description: 'Production server',
       },
     ],
     components: {

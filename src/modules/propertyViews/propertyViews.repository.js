@@ -224,6 +224,77 @@ class PropertyViewsRepository {
     return !!recentView;
   }
 
+  /**
+   * Get user's recently viewed properties
+   * @param {string} userId - User ID
+   * @param {Object} [options={}] - Query options
+   * @param {number} [options.limit=10] - Number of properties to return
+   * @returns {Promise<Array>} Recently viewed properties with details
+   */
+  async getUserRecentlyViewedProperties(userId, options = {}) {
+    const { limit = 10 } = options;
+
+    // Get unique property IDs from user's views, ordered by most recent
+    const recentViews = await prisma.propertyView.findMany({
+      where: {
+        userId,
+      },
+      select: {
+        propertyId: true,
+        viewedAt: true,
+      },
+      orderBy: {
+        viewedAt: 'desc',
+      },
+      distinct: ['propertyId'],
+      take: limit,
+    });
+
+    if (recentViews.length === 0) {
+      return [];
+    }
+
+    // Get full property details for these IDs
+    const propertyIds = recentViews.map(v => v.propertyId);
+    const properties = await prisma.property.findMany({
+      where: {
+        id: { in: propertyIds },
+        status: 'APPROVED', // Only show approved properties
+      },
+      include: {
+        propertyType: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+          },
+        },
+        owner: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    // Create a map of viewedAt times for sorting
+    const viewedAtMap = {};
+    recentViews.forEach(view => {
+      viewedAtMap[view.propertyId] = view.viewedAt;
+    });
+
+    // Sort properties by viewedAt time and add viewedAt field
+    return properties
+      .map(property => ({
+        ...property,
+        viewedAt: viewedAtMap[property.id],
+      }))
+      .sort((a, b) => new Date(b.viewedAt) - new Date(a.viewedAt));
+  }
+
   // ==================== RATING METHODS ====================
 
   /**

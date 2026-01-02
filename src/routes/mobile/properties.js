@@ -129,6 +129,33 @@ router.get('/my', auth, async (req, res) => {
   }
 });
 
+// Get recently viewed properties
+router.get('/recently-viewed', auth, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+
+    const properties = await propertiesService.getUserRecentlyViewedProperties(
+      req.user.id,
+      { limit }
+    );
+
+    res.json({
+      success: true,
+      data: {
+        properties,
+        total: properties.length,
+      },
+    });
+  } catch (error) {
+    console.error('Get recently viewed properties error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get recently viewed properties',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
 /**
  * @swagger
  * /api/v1/properties:
