@@ -682,6 +682,42 @@ class PropertiesService {
     return await this.propertyViewsRepository.getViewStats(propertyId, days);
   }
 
+  /**
+   * Get user's recently viewed properties
+   * @param {string} userId - User ID
+   * @param {Object} [options={}] - Options
+   * @param {number} [options.limit=10] - Number of properties to return
+   * @returns {Promise<Array>} Recently viewed properties
+   */
+  async getUserRecentlyViewedProperties(userId, options = {}) {
+    const { limit = 10 } = options;
+
+    const properties =
+      await this.propertyViewsRepository.getUserRecentlyViewedProperties(
+        userId,
+        { limit: parseInt(limit) }
+      );
+
+    if (properties.length === 0) {
+      return [];
+    }
+
+    // Add Maps URL, view count, rating stats, and favorite info to each property
+    const propertiesWithMapsUrl = this.addMapsUrlToProperties(properties);
+    const propertiesWithViewCount = await this.addViewCountToProperties(
+      propertiesWithMapsUrl
+    );
+    const propertiesWithRatings = await this.addRatingStatsToProperties(
+      propertiesWithViewCount
+    );
+    const propertiesWithFavorites = await this.addFavoriteInfoToProperties(
+      propertiesWithRatings,
+      userId
+    );
+
+    return propertiesWithFavorites;
+  }
+
   // ==================== RATING METHODS ====================
 
   /**
