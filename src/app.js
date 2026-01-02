@@ -45,6 +45,14 @@ app.use(
   helmet({
     crossOriginEmbedderPolicy: false,
     crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+      },
+    },
   })
 );
 
@@ -141,6 +149,65 @@ app.use(sessionMiddleware);
 
 // Static files
 app.use(express.static('public'));
+
+// Password reset web page route
+app.get('/reset-password', async (req, res) => {
+  const ejs = require('ejs');
+  const path = require('path');
+  const jwt = require('jsonwebtoken');
+
+  const { token, success } = req.query;
+
+  let error = null;
+  let validToken = token;
+
+  // If success parameter is present, show success page
+  if (success) {
+    return res.send(
+      await ejs.renderFile(
+        path.join(__dirname, '..', 'templates', 'reset-password-form.ejs'),
+        {
+          token: null,
+          error: null,
+          success: true,
+        }
+      )
+    );
+  }
+
+  // Validate token if provided
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (decoded.type !== 'password-reset') {
+        error =
+          'Invalid token type. This link is not valid for password reset.';
+        validToken = null;
+      }
+    } catch (err) {
+      if (err.name === 'TokenExpiredError') {
+        error =
+          'This password reset link has expired. Please request a new one.';
+      } else {
+        error = 'Invalid token. Please request a new password reset link.';
+      }
+      validToken = null;
+    }
+  } else {
+    error = 'No token provided. Please use the link from your email.';
+  }
+
+  res.send(
+    await ejs.renderFile(
+      path.join(__dirname, '..', 'templates', 'reset-password-form.ejs'),
+      {
+        token: validToken,
+        error: error,
+        success: false,
+      }
+    )
+  );
+});
 
 // Note: File uploads are now handled via S3 storage (configured in .env)
 // Files are served directly from S3, no local static file serving needed

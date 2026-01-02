@@ -701,4 +701,283 @@ router.post('/google', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/v1/m/auth/forgot-password:
+ *   post:
+ *     summary: Request password reset email (Mobile)
+ *     tags: [Mobile - Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email address to send password reset link
+ *     responses:
+ *       200:
+ *         description: Password reset email sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Bad request
+ */
+router.post(
+  '/forgot-password',
+  [
+    body('email')
+      .isEmail()
+      .normalizeEmail()
+      .withMessage('Valid email is required'),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors.array(),
+        });
+      }
+
+      const { email } = req.body;
+
+      // Find user by email
+      const user = await prisma.user.findUnique({
+        where: { email },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          name: true,
+        },
+      });
+
+      // Always return success for security (don't reveal if email exists)
+      // But only send email if user exists
+      if (user) {
+        // Generate password reset token (JWT with 30-minute expiration)
+        const resetToken = jwt.sign(
+          { userId: user.id, email: user.email, type: 'password-reset' },
+          process.env.JWT_SECRET,
+          { expiresIn: '30m' }
+        );
+
+        // Send password reset email
+        const emailService = require('../../services/email.service');
+        await emailService.sendPasswordResetEmail(
+          user.email,
+          resetToken,
+          user.firstName || user.name || 'User'
+        );
+
+        console.log(`✅ Password reset email sent to: ${email}`);
+      } else {
+        console.log(
+          `⚠️ Password reset requested for non-existent email: ${email}`
+        );
+      }
+
+      // Always return generic success message (security best practice)
+      res.json({
+        success: true,
+        message:
+          'If an account with that email exists, we sent a password reset link.',
+      });
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to process password reset request',
+        error:
+          process.env.NODE_ENV === 'development' ? error.message : undefined,
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/v1/m/auth/reset-password:
+ *   post:
+ *     summary: Reset password using token (Mobile)
+ *     tags: [Mobile - Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *               - newPassword
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: Password reset token from email
+ *               newPassword:
+ *                 type: string
+ *                 minLength: 6
+ *                 description: New password
+ *     responses:
+ *       200:
+ *         description: Password reset successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Invalid or expired token
+ */
+router.post(
+  '/reset-password',
+  [
+    body('token').notEmpty().withMessage('Reset token is required'),
+    body('newPassword')
+      .isLength({ min: 6 })
+      .withMessage('Password must be at least 6 characters'),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors.array(),
+        });
+      }
+
+      const { token, newPassword } = req.body;
+
+      // Verify reset token
+      let decoded;
+      try {
+        decoded = jwt.verify(token, process.env.JWT_SECRET);
+      } catch (error) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid or expired reset token',
+        });
+      }
+
+      // Verify token type
+      if (decoded.type !== 'password-reset') {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid token type',
+        });
+      }
+
+      // Find user
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+      });
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found',
+        });
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+      // Update user password
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { password: hashedPassword },
+      });
+
+      console.log(`✅ Password reset successful for user: ${user.email}`);
+
+      res.json({
+        success: true,
+        message:
+          'Password reset successful. You can now login with your new password.',
+      });
+    } catch (error) {
+      console.error('Reset password error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to reset password',
+        error:
+          process.env.NODE_ENV === 'development' ? error.message : undefined,
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/v1/m/auth/test-email:
+ *   post:
+ *     summary: Test SMTP email configuration (Mobile)
+ *     tags: [Mobile - Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email address to send test email
+ *     responses:
+ *       200:
+ *         description: Test email sent successfully
+ *       500:
+ *         description: Failed to send test email
+ */
+router.post(
+  '/test-email',
+  [body('email').isEmail().normalizeEmail()],
+  async (req, res) => {
+    try {
+      const { email } = req.body;
+      const emailService = require('../../services/email.service');
+      await emailService.sendTestEmail(email);
+
+      res.json({
+        success: true,
+        message: 'Test email sent successfully',
+      });
+    } catch (error) {
+      console.error('Test email error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to send test email',
+        error: error.message,
+      });
+    }
+  }
+);
+
 module.exports = router;
