@@ -2,6 +2,7 @@ const propertiesRepository = require('./properties.repository');
 const PropertyViewsRepository = require('../propertyViews/propertyViews.repository');
 const { generateUniquePropertyCode } = require('../../utils/codeGenerator');
 const { prisma } = require('../../config/database');
+const AppError = require('../../utils/AppError');
 
 class PropertiesService {
   constructor() {
@@ -251,6 +252,38 @@ class PropertiesService {
   }
 
   async createProperty(propertyData, ownerId) {
+    // Validate mandatory PDFs
+    if (!propertyData.agreementPdfUrl || !propertyData.houseRulesPdfUrl) {
+      throw new AppError(
+        'Rental agreement PDF and house rules PDF are required',
+        400
+      );
+    }
+
+    // Validate PDF format (simple check for .pdf extension or pdf mimetype)
+    const isPdfUrl = url => {
+      if (!url) return false;
+      // Check if URL contains .pdf or is a Cloudinary PDF URL
+      return (
+        url.toLowerCase().includes('.pdf') ||
+        (url.toLowerCase().includes('/image/upload/') &&
+          url.toLowerCase().includes('.pdf'))
+      );
+    };
+
+    if (!isPdfUrl(propertyData.agreementPdfUrl)) {
+      throw new AppError('Rental agreement must be a PDF file', 400);
+    }
+
+    if (!isPdfUrl(propertyData.houseRulesPdfUrl)) {
+      throw new AppError('House rules must be a PDF file', 400);
+    }
+
+    console.log('✅ PDF validations passed:', {
+      agreementPdf: propertyData.agreementPdfUrl,
+      houseRulesPdf: propertyData.houseRulesPdfUrl,
+    });
+
     // 🆕 Check auto-approve status
     const PropertiesController = require('./properties.controller');
     const autoApproveStatus =
@@ -318,6 +351,10 @@ class PropertiesService {
       status: propertyData.status || propertyStatus, // 🆕 Use auto-approve logic
       images: propertyData.images || [],
       propertyTypeId: propertyData.propertyTypeId,
+      agreementPdfUrl: propertyData.agreementPdfUrl,
+      agreementPublicId: propertyData.agreementPublicId,
+      houseRulesPdfUrl: propertyData.houseRulesPdfUrl,
+      houseRulesPublicId: propertyData.houseRulesPublicId,
       ownerId,
     };
 
@@ -428,7 +465,39 @@ class PropertiesService {
       'status',
       'images',
       'propertyTypeId',
+      'agreementPdfUrl',
+      'agreementPublicId',
+      'houseRulesPdfUrl',
+      'houseRulesPublicId',
     ];
+
+    // Validate PDFs if being updated
+    const isPdfUrl = url => {
+      if (!url) return false;
+      return (
+        url.toLowerCase().includes('.pdf') ||
+        (url.toLowerCase().includes('/image/upload/') &&
+          url.toLowerCase().includes('.pdf'))
+      );
+    };
+
+    if (
+      updateData.agreementPdfUrl !== undefined &&
+      updateData.agreementPdfUrl
+    ) {
+      if (!isPdfUrl(updateData.agreementPdfUrl)) {
+        throw new AppError('Rental agreement must be a PDF file', 400);
+      }
+    }
+
+    if (
+      updateData.houseRulesPdfUrl !== undefined &&
+      updateData.houseRulesPdfUrl
+    ) {
+      if (!isPdfUrl(updateData.houseRulesPdfUrl)) {
+        throw new AppError('House rules must be a PDF file', 400);
+      }
+    }
 
     for (const field of allowedFields) {
       if (updateData[field] !== undefined) {
@@ -1047,6 +1116,20 @@ class PropertiesService {
     if (!property) {
       throw new Error('Property not found');
     }
+
+    // Validate mandatory PDFs before approval
+    if (!property.agreementPdfUrl || !property.houseRulesPdfUrl) {
+      throw new AppError(
+        'Cannot approve property: Rental agreement PDF and house rules PDF are required',
+        400
+      );
+    }
+
+    console.log('✅ Property has required PDFs:', {
+      propertyId,
+      agreementPdf: property.agreementPdfUrl,
+      houseRulesPdf: property.houseRulesPdfUrl,
+    });
 
     // Check if property is in PENDING_REVIEW status
     if (property.status !== 'PENDING_REVIEW') {

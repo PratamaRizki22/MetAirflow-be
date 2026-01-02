@@ -112,8 +112,11 @@ model Property {
   projectName    String?
   developer      String?
   
-  // Rental agreement template (uploaded by landlord)
-  agreementTemplateUrl String?  // URL to rental agreement PDF/DOC
+  // Rental agreement and house rules (mandatory PDFs)
+  agreementPdfUrl    String?  // URL to rental agreement PDF template
+  agreementPublicId  String?  // Cloudinary public ID for agreement
+  houseRulesPdfUrl   String?  // URL to house rules PDF
+  houseRulesPublicId String?  // Cloudinary public ID for house rules
   
   // Metadata sistem
   code           String                   @unique
