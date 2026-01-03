@@ -264,4 +264,213 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/v1/m/collections/{id}/properties:
+ *   post:
+ *     summary: Add property to collection
+ *     tags: [Mobile - Collections]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - propertyId
+ *             properties:
+ *               propertyId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Property added to collection successfully
+ */
+router.post('/:id/properties', auth, async (req, res) => {
+  try {
+    const { id: collectionId } = req.params;
+    const { propertyId } = req.body;
+
+    if (!propertyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Property ID is required',
+      });
+    }
+
+    // Check if collection exists and belongs to user
+    const collection = await prisma.favoriteCollection.findUnique({
+      where: { id: collectionId },
+    });
+
+    if (!collection) {
+      return res.status(404).json({
+        success: false,
+        message: 'Collection not found',
+      });
+    }
+
+    if (collection.userId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this collection',
+      });
+    }
+
+    // Check if property exists
+    const property = await prisma.property.findUnique({
+      where: { id: propertyId },
+    });
+
+    if (!property) {
+      return res.status(404).json({
+        success: false,
+        message: 'Property not found',
+      });
+    }
+
+    // Check if already favorited
+    const existingFavorite = await prisma.propertyFavorite.findUnique({
+      where: {
+        propertyId_userId: {
+          propertyId,
+          userId: req.user.id,
+        },
+      },
+    });
+
+    if (existingFavorite) {
+      // Update existing favorite to add to collection
+      await prisma.propertyFavorite.update({
+        where: {
+          propertyId_userId: {
+            propertyId,
+            userId: req.user.id,
+          },
+        },
+        data: {
+          collectionId,
+        },
+      });
+    } else {
+      // Create new favorite with collection
+      await prisma.propertyFavorite.create({
+        data: {
+          propertyId,
+          userId: req.user.id,
+          collectionId,
+        },
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Property added to collection successfully',
+    });
+  } catch (error) {
+    console.error('Add property to collection error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to add property to collection',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/v1/m/collections/{id}/properties/{propertyId}:
+ *   delete:
+ *     summary: Remove property from collection
+ *     tags: [Mobile - Collections]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Property removed from collection successfully
+ */
+router.delete('/:id/properties/:propertyId', auth, async (req, res) => {
+  try {
+    const { id: collectionId, propertyId } = req.params;
+
+    // Check if collection exists and belongs to user
+    const collection = await prisma.favoriteCollection.findUnique({
+      where: { id: collectionId },
+    });
+
+    if (!collection) {
+      return res.status(404).json({
+        success: false,
+        message: 'Collection not found',
+      });
+    }
+
+    if (collection.userId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this collection',
+      });
+    }
+
+    // Remove property from collection (set collectionId to null)
+    const favorite = await prisma.propertyFavorite.findUnique({
+      where: {
+        propertyId_userId: {
+          propertyId,
+          userId: req.user.id,
+        },
+      },
+    });
+
+    if (!favorite || favorite.collectionId !== collectionId) {
+      return res.status(404).json({
+        success: false,
+        message: 'Property not found in this collection',
+      });
+    }
+
+    await prisma.propertyFavorite.update({
+      where: {
+        propertyId_userId: {
+          propertyId,
+          userId: req.user.id,
+        },
+      },
+      data: {
+        collectionId: null,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Property removed from collection successfully',
+    });
+  } catch (error) {
+    console.error('Remove property from collection error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to remove property from collection',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
 module.exports = router;

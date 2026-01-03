@@ -888,6 +888,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
 router.post('/:id/favorite', auth, async (req, res) => {
   try {
     const { id } = req.params;
+    const { collectionId } = req.query; // Support collectionId from query parameter
 
     // Check if property exists
     const property = await prisma.property.findUnique({
@@ -912,7 +913,44 @@ router.post('/:id/favorite', auth, async (req, res) => {
     });
 
     if (existingFavorite) {
-      // Remove favorite
+      // If collectionId is provided, update the collection
+      if (collectionId) {
+        // Verify collection belongs to user
+        const collection = await prisma.favoriteCollection.findFirst({
+          where: {
+            id: collectionId,
+            userId: req.user.id,
+          },
+        });
+
+        if (!collection) {
+          return res.status(404).json({
+            success: false,
+            message: 'Collection not found',
+          });
+        }
+
+        // Update favorite with collection
+        await prisma.propertyFavorite.update({
+          where: {
+            propertyId_userId: {
+              propertyId: id,
+              userId: req.user.id,
+            },
+          },
+          data: {
+            collectionId: collectionId,
+          },
+        });
+
+        return res.json({
+          success: true,
+          message: 'Property added to collection',
+          data: { isFavorited: true, collectionId },
+        });
+      }
+
+      // Remove favorite if no collectionId
       await prisma.propertyFavorite.delete({
         where: {
           propertyId_userId: {
@@ -929,17 +967,41 @@ router.post('/:id/favorite', auth, async (req, res) => {
       });
     } else {
       // Add favorite
+      const favoriteData = {
+        propertyId: id,
+        userId: req.user.id,
+      };
+
+      // Add collection if provided
+      if (collectionId) {
+        // Verify collection belongs to user
+        const collection = await prisma.favoriteCollection.findFirst({
+          where: {
+            id: collectionId,
+            userId: req.user.id,
+          },
+        });
+
+        if (!collection) {
+          return res.status(404).json({
+            success: false,
+            message: 'Collection not found',
+          });
+        }
+
+        favoriteData.collectionId = collectionId;
+      }
+
       await prisma.propertyFavorite.create({
-        data: {
-          propertyId: id,
-          userId: req.user.id,
-        },
+        data: favoriteData,
       });
 
       res.json({
         success: true,
-        message: 'Property added to favorites',
-        data: { isFavorited: true },
+        message: collectionId
+          ? 'Property added to collection'
+          : 'Property added to favorites',
+        data: { isFavorited: true, collectionId: collectionId || null },
       });
     }
   } catch (error) {
