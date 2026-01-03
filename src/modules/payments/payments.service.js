@@ -515,11 +515,11 @@ class PaymentService {
           },
         });
 
-        // Update booking status to CANCELLED (not REJECTED)
+        // Update booking status to REFUNDED
         await prisma.lease.update({
           where: { id: bookingId },
           data: {
-            status: 'CANCELLED',
+            status: 'REFUNDED',
             paymentStatus: 'refunded',
             cancelledAt: new Date(),
             cancellationReason: reason || 'Refund requested within 4 hours',

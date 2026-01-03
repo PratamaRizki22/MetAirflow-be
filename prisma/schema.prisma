@@ -414,6 +414,7 @@ enum LeaseStatus {
   PENDING // User submit booking, tunggu review owner
   APPROVED // Owner setujui booking
   REJECTED // Owner tolak booking
+  REFUNDED // Tenant minta refund dan di-approve
   ACTIVE // Sewa sedang berlangsung (optional)
   COMPLETED // Sewa sudah selesai (optional)
   CANCELLED // Booking dibatalkan oleh user atau landlord
