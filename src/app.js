@@ -519,9 +519,9 @@ app.use((err, req, res, _next) => {
   }
 
   // Default error response
-  res.status(err.status || 500).json({
+  res.status(err.statusCode || 500).json({
     success: false,
-    error: 'Internal Server Error',
+    error: err.status || 'Internal Server Error',
     message:
       process.env.NODE_ENV === 'production'
         ? 'Something went wrong!'
