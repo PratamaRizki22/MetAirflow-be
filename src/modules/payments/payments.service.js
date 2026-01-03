@@ -44,6 +44,7 @@ class PaymentService {
             select: {
               title: true,
               price: true,
+              ownerId: true,
             },
           },
           tenant: {
@@ -51,6 +52,13 @@ class PaymentService {
               id: true,
               email: true,
               name: true,
+            },
+          },
+          landlord: {
+            select: {
+              id: true,
+              stripeAccountId: true,
+              stripeOnboardingComplete: true,
             },
           },
         },
@@ -69,6 +77,11 @@ class PaymentService {
       if (booking.paymentStatus === 'paid') {
         throw new AppError('Booking already paid', 400);
       }
+
+      // Check if landlord has connected Stripe account
+      const landlordConnected =
+        booking.landlord?.stripeAccountId &&
+        booking.landlord?.stripeOnboardingComplete;
 
       // 2. Get or create Stripe customer
       let customer;
@@ -105,20 +118,49 @@ class PaymentService {
         },
       });
 
-      // 4. Create PaymentIntent
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(booking.totalPrice * 100), // Convert to cents
+      // 4. Create PaymentIntent (with or without direct charge to landlord)
+      const amount = Math.round(booking.totalPrice * 100); // Convert to cents
+      const platformFee = landlordConnected ? Math.round(amount * 0.1) : 0; // 10% platform fee
+
+      const paymentIntentParams = {
+        amount: amount,
         currency: 'myr',
         customer: customer.id,
         metadata: {
           bookingId: booking.id,
           userId: userId,
+          landlordId: booking.landlordId,
           propertyTitle: booking.property.title,
+          directCharge: landlordConnected ? 'true' : 'false',
         },
         automatic_payment_methods: {
           enabled: true,
         },
-      });
+      };
+
+      // If landlord has Stripe Connect, use direct charge (on_behalf_of)
+      if (landlordConnected) {
+        paymentIntentParams.application_fee_amount = platformFee;
+        paymentIntentParams.on_behalf_of = booking.landlord.stripeAccountId;
+        paymentIntentParams.transfer_data = {
+          destination: booking.landlord.stripeAccountId,
+        };
+        console.log(
+          '💳 Creating PaymentIntent with direct charge to landlord:',
+          {
+            landlordAccountId: booking.landlord.stripeAccountId,
+            amount: amount / 100,
+            platformFee: platformFee / 100,
+          }
+        );
+      } else {
+        console.log(
+          '⚠️  Landlord Stripe not connected, payment goes to platform account'
+        );
+      }
+
+      const paymentIntent =
+        await stripe.paymentIntents.create(paymentIntentParams);
 
       // 5. Create ephemeral key for customer
       const ephemeralKey = await stripe.ephemeralKeys.create(
@@ -897,6 +939,345 @@ class PaymentService {
           paymentStatus: 'refunded',
         },
       });
+    }
+  }
+
+  /**
+   * Get landlord revenue statistics from actual Stripe payments
+   * @param {string} landlordId - The landlord user ID
+   * @param {Date} startDate - Start date for filtering (optional)
+   * @param {Date} endDate - End date for filtering (optional)
+   * @returns {Object} Revenue statistics
+   */
+  async getLandlordRevenue(landlordId, startDate = null, endDate = null) {
+    try {
+      // Build date filter
+      const dateFilter = {};
+      if (startDate) dateFilter.gte = new Date(startDate);
+      if (endDate) dateFilter.lte = new Date(endDate);
+
+      // Get all completed payments for landlord's properties
+      const payments = await prisma.stripePayment.findMany({
+        where: {
+          status: 'completed',
+          completedAt:
+            Object.keys(dateFilter).length > 0 ? dateFilter : undefined,
+          booking: {
+            landlordId: landlordId,
+          },
+        },
+        include: {
+          booking: {
+            select: {
+              id: true,
+              checkIn: true,
+              checkOut: true,
+              totalPrice: true,
+              property: {
+                select: {
+                  id: true,
+                  title: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          completedAt: 'desc',
+        },
+      });
+
+      // Calculate statistics
+      const totalRevenue = payments.reduce(
+        (sum, payment) => sum + parseFloat(payment.amount),
+        0
+      );
+
+      // Group by month for monthly revenue
+      const monthlyRevenue = {};
+      payments.forEach(payment => {
+        const date = new Date(payment.completedAt);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+        if (!monthlyRevenue[monthKey]) {
+          monthlyRevenue[monthKey] = {
+            month: monthKey,
+            revenue: 0,
+            count: 0,
+          };
+        }
+
+        monthlyRevenue[monthKey].revenue += parseFloat(payment.amount);
+        monthlyRevenue[monthKey].count += 1;
+      });
+
+      // Get current month revenue
+      const currentDate = new Date();
+      const currentMonthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+      const currentMonthRevenue = monthlyRevenue[currentMonthKey]?.revenue || 0;
+
+      // Count pending payments (processing or pending)
+      const pendingPayments = await prisma.stripePayment.count({
+        where: {
+          status: { in: ['pending', 'processing'] },
+          booking: {
+            landlordId: landlordId,
+          },
+        },
+      });
+
+      return {
+        totalRevenue: parseFloat(totalRevenue.toFixed(2)),
+        currentMonthRevenue: parseFloat(currentMonthRevenue.toFixed(2)),
+        totalTransactions: payments.length,
+        pendingTransactions: pendingPayments,
+        monthlyBreakdown: Object.values(monthlyRevenue).map(m => ({
+          month: m.month,
+          revenue: parseFloat(m.revenue.toFixed(2)),
+          count: m.count,
+        })),
+        recentPayments: payments.slice(0, 10).map(p => ({
+          id: p.id,
+          amount: parseFloat(p.amount),
+          currency: p.currency,
+          completedAt: p.completedAt,
+          bookingId: p.bookingId,
+          propertyTitle: p.booking.property.title,
+        })),
+      };
+    } catch (error) {
+      console.error('Get landlord revenue error:', error);
+      throw new AppError('Failed to get revenue statistics', 500);
+    }
+  }
+
+  /**
+   * Get landlord payout summary (future: for Stripe Connect payouts)
+   * @param {string} landlordId
+   * @returns {Object} Payout summary
+   */
+  async getLandlordPayoutSummary(landlordId) {
+    try {
+      // Get total completed payments
+      const completedPayments = await prisma.stripePayment.aggregate({
+        where: {
+          status: 'completed',
+          booking: {
+            landlordId: landlordId,
+          },
+        },
+        _sum: {
+          amount: true,
+        },
+        _count: {
+          id: true,
+        },
+      });
+
+      // Get refunded amounts
+      const refundedPayments = await prisma.stripePayment.aggregate({
+        where: {
+          status: 'refunded',
+          booking: {
+            landlordId: landlordId,
+          },
+        },
+        _sum: {
+          amount: true,
+        },
+        _count: {
+          id: true,
+        },
+      });
+
+      const totalEarned = parseFloat(completedPayments._sum.amount || 0);
+      const totalRefunded = parseFloat(refundedPayments._sum.amount || 0);
+      const netRevenue = totalEarned - totalRefunded;
+
+      // TODO: When implementing Stripe Connect, calculate actual payouts
+      // For now, assume platform takes 10% commission
+      const platformFee = netRevenue * 0.1;
+      const landlordPayout = netRevenue - platformFee;
+
+      return {
+        totalEarned: parseFloat(totalEarned.toFixed(2)),
+        totalRefunded: parseFloat(totalRefunded.toFixed(2)),
+        netRevenue: parseFloat(netRevenue.toFixed(2)),
+        platformFee: parseFloat(platformFee.toFixed(2)),
+        landlordPayout: parseFloat(landlordPayout.toFixed(2)),
+        completedTransactions: completedPayments._count.id,
+        refundedTransactions: refundedPayments._count.id,
+      };
+    } catch (error) {
+      console.error('Get landlord payout summary error:', error);
+      throw new AppError('Failed to get payout summary', 500);
+    }
+  }
+
+  /**
+   * Create Stripe Connect account for landlord
+   * @param {string} userId - Landlord user ID
+   * @param {object} accountInfo - Account information (email, country, etc.)
+   * @returns {Object} Account link for onboarding
+   */
+  async createConnectAccount(userId, accountInfo = {}) {
+    if (!stripe) {
+      throw new AppError('Payment service is not configured', 503);
+    }
+
+    try {
+      // Check if user already has a Stripe account
+      const existingUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { stripeAccountId: true, email: true },
+      });
+
+      let accountId = existingUser.stripeAccountId;
+
+      // Create new Stripe Connect account if doesn't exist
+      if (!accountId) {
+        const account = await stripe.accounts.create({
+          type: 'express', // Using Express for easier onboarding
+          email: accountInfo.email || existingUser.email,
+          country: accountInfo.country || 'MY', // Default Malaysia
+          capabilities: {
+            card_payments: { requested: true },
+            transfers: { requested: true },
+          },
+          business_type: 'individual',
+        });
+
+        accountId = account.id;
+
+        // Save Stripe account ID to database
+        await prisma.user.update({
+          where: { id: userId },
+          data: {
+            stripeAccountId: accountId,
+            stripeAccountStatus: 'pending',
+          },
+        });
+
+        console.log('✅ Stripe Connect account created:', accountId);
+      }
+
+      // Create account link for onboarding
+      const accountLink = await stripe.accountLinks.create({
+        account: accountId,
+        refresh_url: `${process.env.FRONTEND_URL || 'https://rentverse.com'}/landlord/stripe/refresh`,
+        return_url: `${process.env.FRONTEND_URL || 'https://rentverse.com'}/landlord/stripe/success`,
+        type: 'account_onboarding',
+      });
+
+      return {
+        accountId,
+        onboardingUrl: accountLink.url,
+        expiresAt: accountLink.expires_at,
+      };
+    } catch (error) {
+      console.error('Create Connect account error:', error);
+      throw new AppError('Failed to create Stripe Connect account', 500);
+    }
+  }
+
+  /**
+   * Get Stripe Connect account status
+   * @param {string} userId - Landlord user ID
+   * @returns {Object} Account status
+   */
+  async getConnectAccountStatus(userId) {
+    if (!stripe) {
+      throw new AppError('Payment service is not configured', 503);
+    }
+
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          stripeAccountId: true,
+          stripeAccountStatus: true,
+          stripeOnboardingComplete: true,
+        },
+      });
+
+      if (!user.stripeAccountId) {
+        return {
+          connected: false,
+          onboardingComplete: false,
+          status: 'not_created',
+          message: 'Stripe account not created yet',
+        };
+      }
+
+      // Retrieve account from Stripe
+      const account = await stripe.accounts.retrieve(user.stripeAccountId);
+
+      // Check if account is fully onboarded
+      const chargesEnabled = account.charges_enabled;
+      const detailsSubmitted = account.details_submitted;
+      const onboardingComplete = chargesEnabled && detailsSubmitted;
+
+      // Update database if status changed
+      if (onboardingComplete !== user.stripeOnboardingComplete) {
+        await prisma.user.update({
+          where: { id: userId },
+          data: {
+            stripeOnboardingComplete: onboardingComplete,
+            stripeAccountStatus: chargesEnabled ? 'active' : 'restricted',
+          },
+        });
+      }
+
+      return {
+        connected: true,
+        onboardingComplete,
+        chargesEnabled,
+        detailsSubmitted,
+        status: account.charges_enabled ? 'active' : 'restricted',
+        accountId: user.stripeAccountId,
+        requirements: account.requirements,
+      };
+    } catch (error) {
+      console.error('Get Connect account status error:', error);
+      throw new AppError('Failed to get account status', 500);
+    }
+  }
+
+  /**
+   * Create dashboard link for landlord to manage their Stripe account
+   * @param {string} userId - Landlord user ID
+   * @returns {Object} Dashboard login link
+   */
+  async createDashboardLink(userId) {
+    if (!stripe) {
+      throw new AppError('Payment service is not configured', 503);
+    }
+
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { stripeAccountId: true },
+      });
+
+      if (!user.stripeAccountId) {
+        throw new AppError(
+          'Stripe account not found. Please complete onboarding first.',
+          404
+        );
+      }
+
+      // Create login link for Express dashboard
+      const loginLink = await stripe.accounts.createLoginLink(
+        user.stripeAccountId
+      );
+
+      return {
+        url: loginLink.url,
+        created: loginLink.created,
+      };
+    } catch (error) {
+      console.error('Create dashboard link error:', error);
+      throw new AppError('Failed to create dashboard link', 500);
     }
   }
 }

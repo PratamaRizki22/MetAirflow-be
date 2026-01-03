@@ -61,7 +61,10 @@ model User {
   isHost Boolean @default(false) // True if user has activated hosting mode
 
   // Stripe Integration
-  stripeCustomerId String? @unique
+  stripeCustomerId String? @unique // For tenant payments (customer)
+  stripeAccountId  String? @unique // For landlord payouts (Stripe Connect account)
+  stripeAccountStatus String? // onboarding status: pending, active, restricted, disabled
+  stripeOnboardingComplete Boolean @default(false) // Whether landlord completed Stripe onboarding
 
   leasesAsLandlord    Lease[]              @relation("LandlordLeases")
   leasesAsTenant      Lease[]              @relation("TenantLeases")

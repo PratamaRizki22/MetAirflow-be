@@ -56,4 +56,45 @@ router.post('/cancel', auth, paymentController.cancelPayment);
  */
 router.post('/refund', auth, paymentController.requestRefund);
 
+/**
+ * @route   GET /api/v1/m/payments/landlord/revenue
+ * @desc    Get landlord revenue statistics from Stripe payments
+ * @access  Private (Landlord only)
+ * @query   startDate?, endDate?
+ */
+router.get('/landlord/revenue', auth, paymentController.getLandlordRevenue);
+
+/**
+ * @route   GET /api/v1/m/payments/landlord/payout
+ * @desc    Get landlord payout summary
+ * @access  Private (Landlord only)
+ */
+router.get(
+  '/landlord/payout',
+  auth,
+  paymentController.getLandlordPayoutSummary
+);
+
+/**
+ * @route   POST /api/v1/m/payments/connect/create
+ * @desc    Create Stripe Connect account for landlord
+ * @access  Private (Landlord only)
+ * @body    { email?: string, country?: string }
+ */
+router.post('/connect/create', auth, paymentController.createConnectAccount);
+
+/**
+ * @route   GET /api/v1/m/payments/connect/status
+ * @desc    Get Stripe Connect account status
+ * @access  Private (Landlord only)
+ */
+router.get('/connect/status', auth, paymentController.getConnectAccountStatus);
+
+/**
+ * @route   POST /api/v1/m/payments/connect/dashboard
+ * @desc    Create dashboard link to manage Stripe account
+ * @access  Private (Landlord only)
+ */
+router.post('/connect/dashboard', auth, paymentController.createDashboardLink);
+
 module.exports = router;

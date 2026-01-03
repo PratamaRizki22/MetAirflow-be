@@ -185,6 +185,95 @@ exports.getRefundRequests = catchAsync(async (req, res) => {
 });
 
 /**
+ * Get landlord revenue statistics from Stripe payments
+ * GET /api/v1/m/payments/landlord/revenue
+ */
+exports.getLandlordRevenue = catchAsync(async (req, res) => {
+  const landlordId = req.user.id;
+  const { startDate, endDate } = req.query;
+
+  const revenue = await paymentService.getLandlordRevenue(
+    landlordId,
+    startDate,
+    endDate
+  );
+
+  res.status(200).json({
+    success: true,
+    message: 'Revenue statistics retrieved successfully',
+    data: revenue,
+  });
+});
+
+/**
+ * Get landlord payout summary
+ * GET /api/v1/m/payments/landlord/payout
+ */
+exports.getLandlordPayoutSummary = catchAsync(async (req, res) => {
+  const landlordId = req.user.id;
+
+  const payout = await paymentService.getLandlordPayoutSummary(landlordId);
+
+  res.status(200).json({
+    success: true,
+    message: 'Payout summary retrieved successfully',
+    data: payout,
+  });
+});
+
+/**
+ * Create Stripe Connect account for landlord
+ * POST /api/v1/m/payments/connect/create
+ */
+exports.createConnectAccount = catchAsync(async (req, res) => {
+  const userId = req.user.id;
+  const { email, country } = req.body;
+
+  const result = await paymentService.createConnectAccount(userId, {
+    email,
+    country,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Stripe Connect account created. Please complete onboarding.',
+    data: result,
+  });
+});
+
+/**
+ * Get Stripe Connect account status
+ * GET /api/v1/m/payments/connect/status
+ */
+exports.getConnectAccountStatus = catchAsync(async (req, res) => {
+  const userId = req.user.id;
+
+  const status = await paymentService.getConnectAccountStatus(userId);
+
+  res.status(200).json({
+    success: true,
+    message: 'Connect account status retrieved successfully',
+    data: status,
+  });
+});
+
+/**
+ * Create Stripe dashboard link for landlord
+ * POST /api/v1/m/payments/connect/dashboard
+ */
+exports.createDashboardLink = catchAsync(async (req, res) => {
+  const userId = req.user.id;
+
+  const link = await paymentService.createDashboardLink(userId);
+
+  res.status(200).json({
+    success: true,
+    message: 'Dashboard link created successfully',
+    data: link,
+  });
+});
+
+/**
  * Handle Stripe webhooks
  * POST /api/v1/webhooks/stripe
  */

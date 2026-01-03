@@ -1,5 +1,8 @@
 const propertiesService = require('./properties.service');
 const { validationResult } = require('express-validator');
+const { PrismaClient } = require('@prisma/client');
+
+const prisma = new PrismaClient();
 
 // 🆕 AUTO-APPROVE PROPERTIES STATUS GLOBAL
 let propertyAutoApproveStatus = {
@@ -116,6 +119,24 @@ class PropertiesController {
           success: false,
           message: 'Validation failed',
           errors: errors.array(),
+        });
+      }
+
+      // Check if user has connected Stripe account
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: {
+          stripeAccountId: true,
+          stripeOnboardingComplete: true,
+        },
+      });
+
+      if (!user.stripeAccountId || !user.stripeOnboardingComplete) {
+        return res.status(403).json({
+          success: false,
+          message:
+            'You must connect your Stripe account before creating properties',
+          requiresStripeConnect: true,
         });
       }
 
