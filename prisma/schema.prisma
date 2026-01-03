@@ -3,10 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
-
 
 /// Master jenis properti (mis: Apartemen, Rumah, Studio).
 /// Dibuat terpisah agar bisa dikelola via admin tanpa redeploy.
@@ -15,7 +14,7 @@ model PropertyType {
   code        String     @unique
   name        String
   description String?
-  icon        String?    // Icon URL or icon class name
+  icon        String? // Icon URL or icon class name
   isActive    Boolean    @default(true)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -36,108 +35,106 @@ model Amenity {
 
 /// Akun pengguna (tenant, landlord, admin).
 model User {
-  id               String            @id @default(uuid())
-  email            String            @unique
-  firstName        String            @default("")
-  lastName         String            @default("")
-  name             String            // Computed field (firstName + lastName) for backward compatibility
-  dateOfBirth      DateTime?
-  phone            String?
-  profilePicture   String?           // URL for user's profile picture
-  password         String?
-  role             Role              @default(USER)
-  isActive         Boolean           @default(true)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  verifiedAt       DateTime?
-  
+  id             String    @id @default(uuid())
+  email          String    @unique
+  firstName      String    @default("")
+  lastName       String    @default("")
+  name           String // Computed field (firstName + lastName) for backward compatibility
+  dateOfBirth    DateTime?
+  phone          String?
+  profilePicture String? // URL for user's profile picture
+  password       String?
+  role           Role      @default(USER)
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  verifiedAt     DateTime?
+
   // OAuth IDs
-  googleId         String?           @unique
-  facebookId       String?           @unique
-  appleId          String?           @unique
-  githubId         String?           @unique
-  twitterId        String?           @unique
+  googleId   String? @unique
+  facebookId String? @unique
+  appleId    String? @unique
+  githubId   String? @unique
+  twitterId  String? @unique
 
   // Roles & Status
-  isHost           Boolean           @default(false) // True if user has activated hosting mode
-  
+  isHost Boolean @default(false) // True if user has activated hosting mode
+
   // Stripe Integration
-  stripeCustomerId String?           @unique
-  
-  leasesAsLandlord Lease[]           @relation("LandlordLeases")
-  leasesAsTenant   Lease[]           @relation("TenantLeases")
-  approvals        ListingApproval[] @relation("ReviewerApprovals")
-  payments         Payment[]
-  stripePayments   StripePayment[]   @relation("UserStripePayments")
-  properties       Property[]        @relation("OwnerProperties")
-  propertyViews    PropertyView[]    @relation("PropertyViews")
-  propertyRatings  PropertyRating[]  @relation("PropertyRatings")
-  propertyFavorites PropertyFavorite[] @relation("PropertyFavorites")
+  stripeCustomerId String? @unique
+
+  leasesAsLandlord    Lease[]              @relation("LandlordLeases")
+  leasesAsTenant      Lease[]              @relation("TenantLeases")
+  approvals           ListingApproval[]    @relation("ReviewerApprovals")
+  payments            Payment[]
+  stripePayments      StripePayment[]      @relation("UserStripePayments")
+  properties          Property[]           @relation("OwnerProperties")
+  propertyViews       PropertyView[]       @relation("PropertyViews")
+  propertyRatings     PropertyRating[]     @relation("PropertyRatings")
+  propertyFavorites   PropertyFavorite[]   @relation("PropertyFavorites")
   favoriteCollections FavoriteCollection[] @relation("UserCollections")
-  reviews          Review[]          @relation("UserReviews")
+  reviews             Review[]             @relation("UserReviews")
 
   @@map("users")
 }
 
-
-
 /// Listing properti yang ditawarkan (detail fisik, lokasi, harga).
 /// Gambar/Foto disimpan langsung di kolom `images` (array URL).
 model Property {
-  id             String                   @id @default(uuid())
-  title          String
-  description    String?
-  address        String
-  city           String
-  state          String
-  zipCode        String
-  country        String                   @default("MY")
-  price          Decimal                  @db.Decimal(12, 2)
-  currencyCode   String                   @default("MYR")
-  bedrooms       Int                      @default(0)
-  bathrooms      Int                      @default(0)
-  areaSqm        Float?
-  furnished      Boolean                  @default(false)
-  isAvailable    Boolean                  @default(true)
+  id           String   @id @default(uuid())
+  title        String
+  description  String?
+  address      String
+  city         String
+  state        String
+  zipCode      String
+  country      String   @default("MY")
+  price        Decimal  @db.Decimal(12, 2)
+  currencyCode String   @default("MYR")
+  bedrooms     Int      @default(0)
+  bathrooms    Int      @default(0)
+  areaSqm      Float?
+  furnished    Boolean  @default(false)
+  isAvailable  Boolean  @default(true)
   /// Kumpulan URL gambar untuk listing ini (urutan = urutan tampilan).
-  images         String[]                 @default([])
-  
+  images       String[] @default([])
+
   // Informasi lokasi dan geografis
-  latitude       Float?
-  longitude      Float?
-  placeId        String?
-  geom           Unsupported("geometry")? @map("geom")
-  
+  latitude  Float?
+  longitude Float?
+  placeId   String?
+  geom      Unsupported("geometry")? @map("geom")
+
   // Informasi developer/proyek (opsional)
-  projectName    String?
-  developer      String?
-  
+  projectName String?
+  developer   String?
+
   // Rental agreement and house rules (mandatory PDFs)
-  agreementPdfUrl    String?  // URL to rental agreement PDF template
-  agreementPublicId  String?  // Cloudinary public ID for agreement
-  houseRulesPdfUrl   String?  // URL to house rules PDF
-  houseRulesPublicId String?  // Cloudinary public ID for house rules
-  
+  agreementPdfUrl    String? // URL to rental agreement PDF template
+  agreementPublicId  String? // Cloudinary public ID for agreement
+  houseRulesPdfUrl   String? // URL to house rules PDF
+  houseRulesPublicId String? // Cloudinary public ID for house rules
+
   // Metadata sistem
-  code           String                   @unique
-  status         ListingStatus            @default(PENDING_REVIEW)
-  createdAt      DateTime                 @default(now())
-  updatedAt      DateTime                 @updatedAt
-  
+  code      String        @unique
+  status    ListingStatus @default(PENDING_REVIEW)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
   // Relasi
   ownerId        String
   propertyTypeId String
-  
-  leases         Lease[]
-  approvals      ListingApproval[]
-  predictions    PricePrediction[]
-  views          PropertyView[]
-  ratings        PropertyRating[]
-  favorites      PropertyFavorite[]
-  reviews        Review[]                 @relation("PropertyReviews")
-  owner          User                     @relation("OwnerProperties", fields: [ownerId], references: [id], onDelete: Cascade)
-  propertyType   PropertyType             @relation(fields: [propertyTypeId], references: [id])
-  amenities      PropertyAmenity[]
+
+  leases       Lease[]
+  approvals    ListingApproval[]
+  predictions  PricePrediction[]
+  views        PropertyView[]
+  ratings      PropertyRating[]
+  favorites    PropertyFavorite[]
+  reviews      Review[]           @relation("PropertyReviews")
+  owner        User               @relation("OwnerProperties", fields: [ownerId], references: [id], onDelete: Cascade)
+  propertyType PropertyType       @relation(fields: [propertyTypeId], references: [id])
+  amenities    PropertyAmenity[]
 
   @@index([latitude, longitude])
   @@index([city, state, country])
@@ -160,10 +157,10 @@ model PropertyAmenity {
 model ListingApproval {
   id         String         @id @default(uuid())
   propertyId String         @unique // One approval per property (latest status)
-  reviewerId String?        // Admin yang review
+  reviewerId String? // Admin yang review
   status     ApprovalStatus @default(PENDING)
-  notes      String?        // Optional rejection reason
-  reviewedAt DateTime?      // Kapan di-review
+  notes      String? // Optional rejection reason
+  reviewedAt DateTime? // Kapan di-review
   createdAt  DateTime       @default(now())
   property   Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   reviewer   User?          @relation("ReviewerApprovals", fields: [reviewerId], references: [id])
@@ -174,46 +171,46 @@ model ListingApproval {
 
 /// Kontrak sewa jangka waktu antara landlord dan tenant.
 model Lease {
-  id              String           @id @default(uuid())
-  code            String           @unique @default(cuid())
+  id              String      @id @default(uuid())
+  code            String      @unique @default(cuid())
   startDate       DateTime
   endDate         DateTime
-  rentAmount      Decimal          @db.Decimal(12, 2)
-  currencyCode    String           @default("MYR")
-  securityDeposit Decimal?         @db.Decimal(12, 2)
-  status          LeaseStatus      @default(PENDING)
-  notes           String?          // Catatan dari user saat booking
-  message         String?          // Message to landlord when booking
-  hasReview       Boolean          @default(false) // Track if tenant has reviewed
-  
+  rentAmount      Decimal     @db.Decimal(12, 2)
+  currencyCode    String      @default("MYR")
+  securityDeposit Decimal?    @db.Decimal(12, 2)
+  status          LeaseStatus @default(PENDING)
+  notes           String? // Catatan dari user saat booking
+  message         String? // Message to landlord when booking
+  hasReview       Boolean     @default(false) // Track if tenant has reviewed
+
   // Payment tracking
-  paymentStatus   String           @default("pending") // pending, paid, refunded
-  totalPrice      Decimal          @db.Decimal(12, 2) @default(0)
-  
+  paymentStatus String  @default("pending") // pending, paid, refunded
+  totalPrice    Decimal @default(0) @db.Decimal(12, 2)
+
   // Approval/rejection tracking
-  approvedAt      DateTime?
-  rejectedAt      DateTime?
-  rejectionReason String?
-  cancelledAt     DateTime?
+  approvedAt         DateTime?
+  rejectedAt         DateTime?
+  rejectionReason    String?
+  cancelledAt        DateTime?
   cancellationReason String?
-  
+
   // Digital signature fields
-  tenantSignatureUrl  String?      // URL to tenant's signature image
-  signedAgreementUrl  String?      // URL to final signed agreement PDF
-  signedAt            DateTime?    // When tenant signed the agreement
-  
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  propertyId      String
-  tenantId        String
-  landlordId      String
-  invoices        Invoice[]
-  stripePayments  StripePayment[]  @relation("LeaseStripePayments")
-  landlord        User             @relation("LandlordLeases", fields: [landlordId], references: [id])
-  property        Property         @relation(fields: [propertyId], references: [id])
-  tenant          User             @relation("TenantLeases", fields: [tenantId], references: [id])
-  agreement       RentalAgreement?
-  review          Review?          // One-to-one relation with Review
+  tenantSignatureUrl String? // URL to tenant's signature image
+  signedAgreementUrl String? // URL to final signed agreement PDF
+  signedAt           DateTime? // When tenant signed the agreement
+
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  propertyId     String
+  tenantId       String
+  landlordId     String
+  invoices       Invoice[]
+  stripePayments StripePayment[]  @relation("LeaseStripePayments")
+  landlord       User             @relation("LandlordLeases", fields: [landlordId], references: [id])
+  property       Property         @relation(fields: [propertyId], references: [id])
+  tenant         User             @relation("TenantLeases", fields: [tenantId], references: [id])
+  agreement      RentalAgreement?
+  review         Review? // One-to-one relation with Review
 
   @@index([propertyId, status])
   @@index([tenantId])
@@ -263,10 +260,10 @@ model Payment {
 model RentalAgreement {
   id          String   @id @default(uuid())
   leaseId     String   @unique
-  pdfUrl      String?  // Cloudinary URL
-  publicId    String?  // Cloudinary public ID untuk delete
-  fileName    String?  // Nama file untuk display
-  fileSize    Int?     // Size dalam bytes
+  pdfUrl      String? // Cloudinary URL
+  publicId    String? // Cloudinary public ID untuk delete
+  fileName    String? // Nama file untuk display
+  fileSize    Int? // Size dalam bytes
   generatedAt DateTime @default(now())
   lease       Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
 
@@ -290,14 +287,14 @@ model PricePrediction {
 
 /// Log views/kunjungan ke detail property untuk analytics dan tracking popularitas.
 model PropertyView {
-  id         String    @id @default(uuid())
+  id         String   @id @default(uuid())
   propertyId String
   userId     String?
   ipAddress  String?
   userAgent  String?
-  viewedAt   DateTime  @default(now())
-  property   Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  user       User?     @relation("PropertyViews", fields: [userId], references: [id], onDelete: SetNull)
+  viewedAt   DateTime @default(now())
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user       User?    @relation("PropertyViews", fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([propertyId, viewedAt])
   @@index([userId])
@@ -306,15 +303,15 @@ model PropertyView {
 
 /// Rating dan review property oleh user yang sudah login.
 model PropertyRating {
-  id         String    @id @default(uuid())
+  id         String   @id @default(uuid())
   propertyId String
   userId     String
-  rating     Int       // 1-5 stars
-  comment    String?   // Optional review text
-  ratedAt    DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  property   Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  user       User      @relation("PropertyRatings", fields: [userId], references: [id], onDelete: Cascade)
+  rating     Int // 1-5 stars
+  comment    String? // Optional review text
+  ratedAt    DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user       User     @relation("PropertyRatings", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([propertyId, userId]) // One rating per user per property
   @@index([propertyId])
@@ -324,17 +321,20 @@ model PropertyRating {
 
 /// Favorit property oleh user yang sudah login.
 model PropertyFavorite {
-  id          String    @id @default(uuid())
-  propertyId  String
-  userId      String
-  favoritedAt DateTime  @default(now())
-  property    Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  user        User      @relation("PropertyFavorites", fields: [userId], references: [id], onDelete: Cascade)
+  id           String              @id @default(uuid())
+  propertyId   String
+  userId       String
+  collectionId String?
+  favoritedAt  DateTime            @default(now())
+  property     Property            @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user         User                @relation("PropertyFavorites", fields: [userId], references: [id], onDelete: Cascade)
+  collection   FavoriteCollection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
 
   @@unique([propertyId, userId]) // One favorite per user per property
   @@index([propertyId])
   @@index([userId])
   @@index([userId, favoritedAt]) // For user's favorites list ordered by date
+  @@index([collectionId])
   @@map("property_favorites")
 }
 
@@ -342,12 +342,13 @@ model PropertyFavorite {
 model FavoriteCollection {
   id        String   @id @default(uuid())
   userId    String
-  name      String   // Collection name (max 20 chars enforced in app)
+  name      String // Collection name (max 20 chars enforced in app)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  user      User     @relation("UserCollections", fields: [userId], references: [id], onDelete: Cascade)
-  
+
+  user      User               @relation("UserCollections", fields: [userId], references: [id], onDelete: Cascade)
+  favorites PropertyFavorite[] // Properties in this collection
+
   @@index([userId])
   @@index([userId, createdAt]) // For user's collections list ordered by date
   @@map("favorite_collections")
@@ -356,18 +357,18 @@ model FavoriteCollection {
 /// Review dan rating property oleh tenant setelah menyelesaikan booking/lease.
 /// Satu review per lease untuk memastikan hanya tenant yang benar-benar menginap yang bisa review.
 model Review {
-  id         String    @id @default(uuid())
+  id         String   @id @default(uuid())
   propertyId String
   userId     String
-  leaseId    String    @unique // One review per lease
-  rating     Int       // 1-5 stars
-  comment    String    // Review text (minimum 10 characters enforced in app)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  
-  property   Property  @relation("PropertyReviews", fields: [propertyId], references: [id], onDelete: Cascade)
-  user       User      @relation("UserReviews", fields: [userId], references: [id], onDelete: Cascade)
-  lease      Lease     @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  leaseId    String   @unique // One review per lease
+  rating     Int // 1-5 stars
+  comment    String // Review text (minimum 10 characters enforced in app)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  property Property @relation("PropertyReviews", fields: [propertyId], references: [id], onDelete: Cascade)
+  user     User     @relation("UserReviews", fields: [userId], references: [id], onDelete: Cascade)
+  lease    Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
 
   @@index([propertyId, createdAt]) // For fetching property reviews ordered by date
   @@index([userId])
@@ -406,12 +407,12 @@ enum ApprovalStatus {
 
 /// Status siklus kontrak sewa (simplified).
 enum LeaseStatus {
-  PENDING    // User submit booking, tunggu review owner
-  APPROVED   // Owner setujui booking
-  REJECTED   // Owner tolak booking
-  ACTIVE     // Sewa sedang berlangsung (optional)
-  COMPLETED  // Sewa sudah selesai (optional)
-  CANCELLED  // Booking dibatalkan oleh user atau landlord
+  PENDING // User submit booking, tunggu review owner
+  APPROVED // Owner setujui booking
+  REJECTED // Owner tolak booking
+  ACTIVE // Sewa sedang berlangsung (optional)
+  COMPLETED // Sewa sudah selesai (optional)
+  CANCELLED // Booking dibatalkan oleh user atau landlord
 }
 
 /// Jenis invoice/tagihan dalam sewa.
@@ -448,20 +449,20 @@ enum PaymentStatus {
 
 /// Stripe payment tracking untuk mobile payment integration
 model StripePayment {
-  id               String    @id @default(uuid())
-  bookingId        String    // Lease ID (bookingId in mobile context)
-  userId           String
-  amount           Decimal   @db.Decimal(12, 2)
-  currency         String    @default("myr")
-  paymentIntentId  String?   @unique
-  status           String    @default("pending") // pending, processing, completed, failed, refunded, canceled, requires_action
-  completedAt      DateTime?
-  refundedAt       DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id              String    @id @default(uuid())
+  bookingId       String // Lease ID (bookingId in mobile context)
+  userId          String
+  amount          Decimal   @db.Decimal(12, 2)
+  currency        String    @default("myr")
+  paymentIntentId String?   @unique
+  status          String    @default("pending") // pending, processing, completed, failed, refunded, canceled, requires_action
+  completedAt     DateTime?
+  refundedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  booking          Lease     @relation("LeaseStripePayments", fields: [bookingId], references: [id], onDelete: Cascade)
-  user             User      @relation("UserStripePayments", fields: [userId], references: [id], onDelete: Cascade)
+  booking Lease @relation("LeaseStripePayments", fields: [bookingId], references: [id], onDelete: Cascade)
+  user    User  @relation("UserStripePayments", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([bookingId])
   @@index([userId])
