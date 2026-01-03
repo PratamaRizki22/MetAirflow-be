@@ -963,7 +963,9 @@ class PaymentService {
           completedAt:
             Object.keys(dateFilter).length > 0 ? dateFilter : undefined,
           booking: {
-            landlordId: landlordId,
+            property: {
+              ownerId: landlordId,
+            },
           },
         },
         include: {
@@ -1021,7 +1023,9 @@ class PaymentService {
         where: {
           status: { in: ['pending', 'processing'] },
           booking: {
-            landlordId: landlordId,
+            property: {
+              ownerId: landlordId,
+            },
           },
         },
       });
@@ -1063,7 +1067,9 @@ class PaymentService {
         where: {
           status: 'completed',
           booking: {
-            landlordId: landlordId,
+            property: {
+              ownerId: landlordId,
+            },
           },
         },
         _sum: {
@@ -1079,7 +1085,9 @@ class PaymentService {
         where: {
           status: 'refunded',
           booking: {
-            landlordId: landlordId,
+            property: {
+              ownerId: landlordId,
+            },
           },
         },
         _sum: {
