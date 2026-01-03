@@ -96,6 +96,7 @@ model Property {
   areaSqm      Float?
   furnished    Boolean  @default(false)
   isAvailable  Boolean  @default(true)
+  autoApproval Boolean  @default(false)
   /// Kumpulan URL gambar untuk listing ini (urutan = urutan tampilan).
   images       String[] @default([])
 

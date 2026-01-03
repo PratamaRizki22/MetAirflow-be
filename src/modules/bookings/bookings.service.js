@@ -111,9 +111,17 @@ class BookingsService {
     }
 
     // ===========================================
-    // 🆕 AUTO-APPROVE FLOW (New Implementation)
+    // 🆕 AUTO-APPROVE FLOW (Check property setting)
     // ===========================================
-    // Create booking with APPROVED status (auto-approve)
+    // Check if property has auto-approval enabled
+    const bookingStatus = property.autoApproval ? 'APPROVED' : 'PENDING';
+
+    console.log(
+      `📋 Property ${propertyId} autoApproval: ${property.autoApproval}`
+    );
+    console.log(`📋 Booking will be created with status: ${bookingStatus}`);
+
+    // Create booking with status based on property setting
     const booking = await prisma.lease.create({
       data: {
         propertyId,
@@ -123,7 +131,7 @@ class BookingsService {
         endDate: bookingEndDate,
         rentAmount: parseFloat(rentAmount),
         securityDeposit: securityDeposit ? parseFloat(securityDeposit) : null,
-        status: 'APPROVED', // 🆕 Auto-approve immediately
+        status: bookingStatus, // Auto-approve if property has autoApproval=true
         notes: notes || null,
       },
       include: {
@@ -157,35 +165,46 @@ class BookingsService {
       },
     });
 
-    // 🆕 AUTO-GENERATE PDF immediately after booking creation
-    try {
-      console.log(
-        `📄 Auto-generating rental agreement PDF for booking: ${booking.id}`
-      );
-      const pdfResult =
-        await pdfGenerationService.generateAndUploadRentalAgreementPDF(
-          booking.id
+    // 🆕 AUTO-GENERATE PDF only if booking is auto-approved
+    if (bookingStatus === 'APPROVED') {
+      try {
+        console.log(
+          `📄 Auto-generating rental agreement PDF for approved booking: ${booking.id}`
         );
+        const pdfResult =
+          await pdfGenerationService.generateAndUploadRentalAgreementPDF(
+            booking.id
+          );
 
-      console.log('✅ Rental agreement PDF auto-generated successfully');
-      console.log('📍 PDF URL:', pdfResult.data.cloudinary.url);
+        console.log('✅ Rental agreement PDF auto-generated successfully');
+        console.log('📍 PDF URL:', pdfResult.data.cloudinary.url);
 
-      // Add PDF info to response
-      booking.rentalAgreementPDF = {
-        url: pdfResult.data.cloudinary.url,
-        fileName: pdfResult.data.cloudinary.fileName,
-        generated: true,
-      };
-    } catch (pdfError) {
-      console.error(
-        '❌ Error auto-generating rental agreement PDF:',
-        pdfError.message
+        // Add PDF info to response
+        booking.rentalAgreementPDF = {
+          url: pdfResult.data.cloudinary.url,
+          fileName: pdfResult.data.cloudinary.fileName,
+          generated: true,
+        };
+      } catch (pdfError) {
+        console.error(
+          '❌ Error auto-generating rental agreement PDF:',
+          pdfError.message
+        );
+        // Don't fail the booking if PDF generation fails
+        booking.rentalAgreementPDF = {
+          url: null,
+          error: pdfError.message,
+          generated: false,
+        };
+      }
+    } else {
+      console.log(
+        '⏳ Booking is PENDING, PDF will be generated after landlord approval'
       );
-      // Don't fail the booking if PDF generation fails
       booking.rentalAgreementPDF = {
         url: null,
-        error: pdfError.message,
         generated: false,
+        pendingApproval: true,
       };
     }
 
