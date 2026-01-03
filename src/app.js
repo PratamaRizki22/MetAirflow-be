@@ -323,6 +323,10 @@ app.use('/api/v1/amenities', amenityRoutes);
 app.use('/api/v1/predictions', predictionRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 
+// Refund routes
+const refundRoutes = require('./routes/refunds');
+app.use('/api/v1/refunds', refundRoutes);
+
 // Use routes (Mobile) - API v1
 app.use('/api/v1/m', mobileRoutes);
 

@@ -3,6 +3,72 @@ const { validationResult } = require('express-validator');
 
 class BookingsController {
   /**
+   * Check property availability for date range
+   */
+  async checkAvailability(req, res) {
+    try {
+      const { propertyId } = req.params;
+      const { startDate, endDate } = req.query;
+
+      if (!startDate || !endDate) {
+        return res.status(400).json({
+          success: false,
+          message: 'Start date and end date are required',
+        });
+      }
+
+      const isAvailable = await bookingsService.isPropertyAvailableForPeriod(
+        propertyId,
+        new Date(startDate),
+        new Date(endDate)
+      );
+
+      res.json({
+        success: true,
+        data: {
+          available: isAvailable,
+          propertyId,
+          startDate,
+          endDate,
+        },
+      });
+    } catch (error) {
+      console.error('Check availability error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  /**
+   * Get occupied dates for property calendar
+   */
+  async getOccupiedDates(req, res) {
+    try {
+      const { propertyId } = req.params;
+      const { startMonth, endMonth } = req.query;
+
+      const occupiedDates = await bookingsService.getOccupiedDates(
+        propertyId,
+        startMonth,
+        endMonth
+      );
+
+      res.json({
+        success: true,
+        data: occupiedDates,
+      });
+    } catch (error) {
+      console.error('Get occupied dates error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  /**
    * Create new booking
    */
   async createBooking(req, res) {

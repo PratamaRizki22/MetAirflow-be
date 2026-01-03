@@ -15,6 +15,8 @@ const propertyTypesRoutes = require('./propertyTypes');
 const amenitiesRoutes = require('./amenities');
 const uploadRoutes = require('./upload');
 const paymentsRoutes = require('./payments');
+const refundRoutes = require('../refunds');
+const chatRoutes = require('../chat');
 const agreementsRoutes = require('../../modules/agreements/agreements.routes');
 const reviewsRoutes = require('../../modules/reviews/reviews.routes');
 const predictionsRoutes = require('../../modules/predictions/predictions.routes');
@@ -29,6 +31,8 @@ router.use('/property-types', propertyTypesRoutes);
 router.use('/amenities', amenitiesRoutes);
 router.use('/upload', uploadRoutes);
 router.use('/payments', paymentsRoutes);
+router.use('/refunds', refundRoutes);
+router.use('/', chatRoutes); // Chat routes (conversations, messages)
 router.use('/agreements', agreementsRoutes);
 router.use('/predictions', predictionsRoutes);
 router.use('/collections', collectionsRoutes);

@@ -7,6 +7,71 @@ const router = express.Router();
 
 /**
  * @swagger
+ * /api/v1/bookings/check-availability/{propertyId}:
+ *   get:
+ *     summary: Check property availability for date range
+ *     tags: [Bookings]
+ *     parameters:
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Property ID to check
+ *       - in: query
+ *         name: startDate
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Start date (YYYY-MM-DD)
+ *       - in: query
+ *         name: endDate
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: End date (YYYY-MM-DD)
+ *     responses:
+ *       200:
+ *         description: Availability check result
+ */
+router.get(
+  '/check-availability/:propertyId',
+  bookingsController.checkAvailability
+);
+
+/**
+ * @swagger
+ * /api/v1/bookings/occupied-dates/{propertyId}:
+ *   get:
+ *     summary: Get occupied dates for property calendar
+ *     tags: [Bookings]
+ *     parameters:
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Property ID
+ *       - in: query
+ *         name: startMonth
+ *         schema:
+ *           type: string
+ *         description: Start month (YYYY-MM)
+ *       - in: query
+ *         name: endMonth
+ *         schema:
+ *           type: string
+ *         description: End month (YYYY-MM)
+ *     responses:
+ *       200:
+ *         description: List of occupied date ranges
+ */
+router.get('/occupied-dates/:propertyId', bookingsController.getOccupiedDates);
+
+/**
+ * @swagger
  * components:
  *   schemas:
  *     Booking:

@@ -917,6 +917,48 @@ class BookingsService {
 
     return updated;
   }
+  /**
+   * Get occupied dates for property calendar
+   * @param {string} propertyId
+   * @param {string} startMonth - YYYY-MM format
+   * @param {string} endMonth - YYYY-MM format
+   * @returns {Promise<Array>}
+   */
+  async getOccupiedDates(propertyId, startMonth, endMonth) {
+    const startDate = startMonth ? new Date(`${startMonth}-01`) : new Date();
+    const endDate = endMonth
+      ? new Date(
+          new Date(`${endMonth}-01`).getFullYear(),
+          new Date(`${endMonth}-01`).getMonth() + 1,
+          0
+        )
+      : new Date(new Date().getFullYear(), new Date().getMonth() + 3, 0); // 3 months ahead
+
+    const bookings = await prisma.lease.findMany({
+      where: {
+        propertyId,
+        status: { in: ['APPROVED', 'ACTIVE', 'COMPLETED'] },
+        startDate: { lte: endDate },
+        endDate: { gte: startDate },
+      },
+      select: {
+        startDate: true,
+        endDate: true,
+        status: true,
+        tenant: {
+          select: { name: true },
+        },
+      },
+      orderBy: { startDate: 'asc' },
+    });
+
+    return bookings.map(booking => ({
+      start: booking.startDate.toISOString().split('T')[0],
+      end: booking.endDate.toISOString().split('T')[0],
+      status: booking.status,
+      tenantName: booking.tenant.name,
+    }));
+  }
 }
 
 module.exports = new BookingsService();

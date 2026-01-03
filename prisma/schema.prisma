@@ -79,6 +79,9 @@ model User {
   reviews             Review[]             @relation("UserReviews")
   refundRequestsAsTenant   RefundRequest[] @relation("TenantRefundRequests")
   refundRequestsAsLandlord RefundRequest[] @relation("LandlordRefundRequests")
+  tenantConversations      Conversation[]  @relation("TenantConversations")
+  landlordConversations    Conversation[]  @relation("LandlordConversations")
+  sentMessages             Message[]       @relation("SentMessages")
 
   @@map("users")
 }
@@ -109,7 +112,7 @@ model Property {
   latitude  Float?
   longitude Float?
   placeId   String?
-  geom      Unsupported("geometry")? @map("geom")
+  // geom      Unsupported("geometry")? @map("geom")
 
   // Informasi developer/proyek (opsional)
   projectName String?
@@ -141,6 +144,7 @@ model Property {
   owner        User               @relation("OwnerProperties", fields: [ownerId], references: [id], onDelete: Cascade)
   propertyType PropertyType       @relation(fields: [propertyTypeId], references: [id])
   amenities    PropertyAmenity[]
+  conversations Conversation[]
 
   @@index([latitude, longitude])
   @@index([city, state, country])
@@ -510,4 +514,49 @@ enum RefundRequestStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+/// Chat conversations between tenant and landlord
+model Conversation {
+  id         String   @id @default(uuid())
+  propertyId String
+  tenantId   String
+  landlordId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenant   User     @relation("TenantConversations", fields: [tenantId], references: [id], onDelete: Cascade)
+  landlord User     @relation("LandlordConversations", fields: [landlordId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@unique([propertyId, tenantId]) // One conversation per property per tenant
+  @@index([tenantId])
+  @@index([landlordId])
+  @@map("conversations")
+}
+
+/// Chat messages within conversations
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String
+  senderId       String
+  content        String
+  type           MessageType @default(TEXT)
+  readAt         DateTime?
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@map("messages")
+}
+
+/// Message types
+enum MessageType {
+  TEXT
+  IMAGE
+  SYSTEM
 }
