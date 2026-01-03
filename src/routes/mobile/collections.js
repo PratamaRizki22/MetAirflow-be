@@ -21,6 +21,11 @@ router.get('/', auth, async (req, res) => {
   try {
     const collections = await prisma.favoriteCollection.findMany({
       where: { userId: req.user.id },
+      include: {
+        _count: {
+          select: { favorites: true },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
 
