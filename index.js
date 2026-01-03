@@ -29,28 +29,28 @@ const io = new Server(server, {
   cors: {
     origin: '*', // Allow all origins for mobile app
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    credentials: true
-  }
+    credentials: true,
+  },
 });
 
 // Socket.IO Connection Handler
-io.on('connection', (socket) => {
+io.on('connection', socket => {
   console.log('🔌 Socket connected:', socket.id);
 
   // Join conversation room
-  socket.on('join_room', (conversationId) => {
+  socket.on('join_room', conversationId => {
     socket.join(conversationId);
     console.log(`👤 User ${socket.id} joined room: ${conversationId}`);
   });
 
   // Leave conversation room
-  socket.on('leave_room', (conversationId) => {
+  socket.on('leave_room', conversationId => {
     socket.leave(conversationId);
     console.log(`👋 User ${socket.id} left room: ${conversationId}`);
   });
 
   // Handle sending messages
-  socket.on('send_message', (data) => {
+  socket.on('send_message', data => {
     const { conversationId, message } = data;
     console.log(`📨 Message in ${conversationId}:`, message.id);
 
