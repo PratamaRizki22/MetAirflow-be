@@ -25,13 +25,23 @@ router.get('/', auth, async (req, res) => {
         _count: {
           select: { favorites: true },
         },
+        favorites: {
+          select: { propertyId: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
 
+    // Transform to include propertyIds array
+    const transformedCollections = collections.map(collection => ({
+      ...collection,
+      propertyIds: collection.favorites.map(fav => fav.propertyId),
+      favorites: undefined, // Remove favorites array from response
+    }));
+
     res.json({
       success: true,
-      data: { collections },
+      data: { collections: transformedCollections },
     });
   } catch (error) {
     console.error('Get collections error:', error);
