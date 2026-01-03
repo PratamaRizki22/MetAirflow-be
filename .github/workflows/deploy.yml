@@ -82,7 +82,7 @@ jobs:
           echo 'Building new image...' && \
           docker compose build app --no-cache && \
           echo 'Applying database schema...' && \
-          docker compose run --rm app npx prisma db push && \
+          docker compose run --rm app npx prisma db push --accept-data-loss && \
           echo 'Starting all services...' && \
           docker compose up -d && \
           echo 'Pruning old images...' && \
