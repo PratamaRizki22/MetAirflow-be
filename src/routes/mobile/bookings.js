@@ -35,7 +35,7 @@ const router = express.Router();
  *         name: status
  *         schema:
  *           type: string
- *           enum: [PENDING, APPROVED, REJECTED, CANCELLED, COMPLETED]
+ *           enum: [PENDING, APPROVED, REJECTED, REFUNDED, COMPLETED]
  *       - in: query
  *         name: role
  *         schema:
@@ -583,7 +583,7 @@ router.post('/:id/cancel', auth, async (req, res) => {
     const updatedBooking = await prisma.lease.update({
       where: { id },
       data: {
-        status: 'CANCELLED',
+        status: 'REFUNDED',
         cancellationReason: reason || null,
         cancelledAt: new Date(),
       },

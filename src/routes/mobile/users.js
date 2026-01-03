@@ -454,7 +454,7 @@ router.get('/favorites', auth, async (req, res) => {
  *         name: status
  *         schema:
  *           type: string
- *           enum: [PENDING, APPROVED, REJECTED, CANCELLED, COMPLETED]
+ *           enum: [PENDING, APPROVED, REJECTED, REFUNDED, COMPLETED]
  *     responses:
  *       200:
  *         description: Bookings retrieved successfully

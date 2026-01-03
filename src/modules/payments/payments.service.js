@@ -420,7 +420,7 @@ class PaymentService {
           await prisma.lease.update({
             where: { id: payment.bookingId },
             data: {
-              status: 'CANCELLED',
+              status: 'REFUNDED',
               cancelledAt: new Date(),
               cancellationReason: 'Payment cancelled by user',
               paymentStatus: 'failed',
