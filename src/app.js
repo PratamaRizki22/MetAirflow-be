@@ -310,7 +310,7 @@ const predictionRoutes = require('./modules/predictions/predictions.routes');
 const paymentRoutes = require('./modules/payments/payments.routes');
 
 // Import mobile routes
-const mobileRoutes = require('./routes/mobile');
+const mobileRoutes = require('./routes/mobile/index');
 
 // Use routes (Web) - API v1
 app.use('/api/v1/auth', authRoutes);
