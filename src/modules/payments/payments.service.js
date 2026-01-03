@@ -167,9 +167,23 @@ class PaymentService {
    */
   async confirmPayment(bookingId, paymentIntentId, userId) {
     try {
+      console.log('🔵 confirmPayment called:', {
+        bookingId,
+        paymentIntentId,
+        userId,
+      });
+
+      // Extract actual payment intent ID from secret (mobile sends full secret)
+      // Format: pi_xxx_secret_yyy -> we need only pi_xxx
+      const actualPaymentIntentId = paymentIntentId.split('_secret_')[0];
+      console.log('📋 Extracted payment intent ID:', actualPaymentIntentId);
+
       // 1. Verify PaymentIntent with Stripe
-      const paymentIntent =
-        await stripe.paymentIntents.retrieve(paymentIntentId);
+      const paymentIntent = await stripe.paymentIntents.retrieve(
+        actualPaymentIntentId
+      );
+
+      console.log('💳 Stripe payment intent status:', paymentIntent.status);
 
       if (paymentIntent.status !== 'succeeded') {
         throw new AppError('Payment not successful', 400);
@@ -179,13 +193,12 @@ class PaymentService {
       const payment = await prisma.stripePayment.findFirst({
         where: {
           bookingId: bookingId,
-          paymentIntentId: paymentIntentId,
+          paymentIntentId: actualPaymentIntentId,
         },
         include: {
           booking: true,
         },
       });
-
       if (!payment) {
         throw new AppError('Payment record not found', 404);
       }
