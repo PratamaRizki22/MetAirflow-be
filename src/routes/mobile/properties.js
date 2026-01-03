@@ -1348,4 +1348,119 @@ router.get('/:propertyId/availability', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/v1/m/properties/{id}/occupied-dates:
+ *   get:
+ *     summary: Get occupied dates for a property (for calendar UI)
+ *     tags: [Mobile - Properties]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Property ID
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Start date for range (default: today)
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: End date for range (default: 3 months from start)
+ *     responses:
+ *       200:
+ *         description: Occupied dates retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     occupiedPeriods:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           startDate:
+ *                             type: string
+ *                             format: date-time
+ *                           endDate:
+ *                             type: string
+ *                             format: date-time
+ *                           status:
+ *                             type: string
+ */
+router.get('/:id/occupied-dates', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const startDate = req.query.startDate
+      ? new Date(req.query.startDate)
+      : new Date();
+    const endDate = req.query.endDate
+      ? new Date(req.query.endDate)
+      : new Date(startDate.getTime() + 90 * 24 * 60 * 60 * 1000); // 3 months
+
+    console.log('📅 Getting occupied dates for property:', {
+      propertyId: id,
+      startDate,
+      endDate,
+    });
+
+    // Get all approved/active bookings for this property in the date range
+    const occupiedPeriods = await prisma.lease.findMany({
+      where: {
+        propertyId: id,
+        status: { in: ['APPROVED', 'ACTIVE'] },
+        OR: [
+          {
+            AND: [
+              { startDate: { lte: endDate } },
+              { endDate: { gte: startDate } },
+            ],
+          },
+        ],
+      },
+      select: {
+        id: true,
+        startDate: true,
+        endDate: true,
+        status: true,
+      },
+      orderBy: { startDate: 'asc' },
+    });
+
+    console.log(`✅ Found ${occupiedPeriods.length} occupied periods`);
+
+    res.json({
+      success: true,
+      data: {
+        occupiedPeriods,
+        queryRange: {
+          startDate,
+          endDate,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('❌ Get occupied dates error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get occupied dates',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
 module.exports = router;
