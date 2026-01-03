@@ -382,6 +382,76 @@ class BookingsService {
   }
 
   /**
+   * Get all bookings (for Admin)
+   * @param {number} page
+   * @param {number} limit
+   * @param {string} status - Optional filter by status
+   * @returns {Promise<Object>}
+   */
+  async getAllBookings(page = 1, limit = 10, status = null) {
+    const skip = (page - 1) * limit;
+
+    const where = {};
+    if (status) {
+      where.status = status;
+    }
+
+    const [bookings, total] = await Promise.all([
+      prisma.lease.findMany({
+        where,
+        include: {
+          property: {
+            select: {
+              id: true,
+              title: true,
+              address: true,
+              city: true,
+              images: true,
+              price: true,
+              currencyCode: true,
+            },
+          },
+          tenant: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              name: true,
+              phone: true,
+            },
+          },
+          landlord: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.lease.count({ where }),
+    ]);
+
+    const pages = Math.ceil(total / limit);
+
+    return {
+      bookings,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages,
+      },
+    };
+  }
+
+  /**
    * 🔒 COMMENTED FOR FUTURE IMPLEMENTATION
    * Approve booking (owner only) - NOT USED IN AUTO-APPROVE FLOW
    * @param {string} bookingId
@@ -512,7 +582,7 @@ class BookingsService {
    * @param {string} notes - Optional notes
    * @returns {Promise<Object>}
    */
-  async approveBooking(bookingId, ownerId, _notes = '') {
+  async approveBooking(bookingId, userId, userRole, notes = '') {
     // Get booking details to check if it exists
     const booking = await prisma.lease.findUnique({
       where: { id: bookingId },
@@ -534,28 +604,86 @@ class BookingsService {
       throw new Error('Booking not found');
     }
 
-    // Check ownership
-    if (booking.landlordId !== ownerId) {
+    // Check ownership or Admin role
+    if (userRole !== 'ADMIN' && booking.landlordId !== userId) {
       throw new Error(
         'Access denied: You can only manage bookings for your own properties'
       );
     }
 
-    // 🆕 Since bookings are auto-approved, this endpoint is no longer needed
+    // Allow approving if status is PENDING or PAID
     if (booking.status === 'APPROVED') {
       return {
-        message:
-          '✅ Booking is already approved! With the new auto-approve system, all bookings are automatically approved upon creation.',
+        message: 'Booking is already approved.',
         booking: booking,
-        autoApproveEnabled: true,
-        needsManualApproval: false,
       };
     }
 
-    // If somehow there's a PENDING booking (shouldn't happen with auto-approve)
-    throw new Error(
-      '🔄 Auto-approve is enabled. All new bookings are automatically approved. This booking might be from the old system. Please contact support if needed.'
-    );
+    // Approve the booking
+    const approvedBooking = await prisma.lease.update({
+      where: { id: bookingId },
+      data: {
+        status: 'APPROVED',
+        notes: notes
+          ? `${booking.notes || ''}\n\nApproval notes: ${notes}`.trim()
+          : booking.notes,
+        updatedAt: new Date(),
+        approvedAt: new Date(),
+      },
+      include: {
+        property: {
+          select: {
+            id: true,
+            title: true,
+            address: true,
+            city: true,
+          },
+        },
+        tenant: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    // Generate PDF rental agreement after approval
+    if (approvedBooking.status === 'APPROVED') {
+      try {
+        console.log(
+          `📄 Generating rental agreement PDF for approved booking: ${bookingId}`
+        );
+        const pdfResult =
+          await pdfGenerationService.generateAndUploadRentalAgreementPDF(
+            bookingId
+          );
+
+        console.log('✅ Rental agreement PDF generated successfully');
+
+        // Add PDF info to response
+        approvedBooking.rentalAgreementPDF = {
+          url: pdfResult.data.cloudinary.url,
+          fileName: pdfResult.data.cloudinary.fileName,
+          generated: true,
+        };
+      } catch (pdfError) {
+        console.error(
+          '❌ Error generating rental agreement PDF:',
+          pdfError.message
+        );
+        approvedBooking.rentalAgreementPDF = {
+          url: null,
+          error: pdfError.message,
+          generated: false,
+        };
+      }
+    }
+
+    return approvedBooking;
   }
 
   /**

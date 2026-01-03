@@ -419,6 +419,7 @@ enum ApprovalStatus {
 /// Status siklus kontrak sewa (simplified).
 enum LeaseStatus {
   PENDING // User submit booking, tunggu review owner
+  PAID    // User has paid, waiting for admin/owner final approval
   APPROVED // Owner setujui booking
   REJECTED // Owner tolak booking
   CANCELLED // Booking dibatalkan

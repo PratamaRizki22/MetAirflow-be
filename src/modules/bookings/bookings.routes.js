@@ -265,6 +265,49 @@ router.get('/owner-bookings', auth, bookingsController.getOwnerBookings);
 
 /**
  * @swagger
+ * /api/v1/bookings/admin/all:
+ *   get:
+ *     summary: Get all bookings (Admin only)
+ *     tags: [Bookings]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *         description: Items per page
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [PENDING, APPROVED, REJECTED, ACTIVE, COMPLETED, PAID]
+ *         description: Filter by booking status
+ *     responses:
+ *       200:
+ *         description: Bookings retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Access denied
+ */
+router.get(
+  '/admin/all',
+  auth,
+  authorize('ADMIN'),
+  bookingsController.getAllBookings
+);
+
+/**
+ * @swagger
  * /api/v1/bookings/property/{propertyId}/booked-periods:
  *   get:
  *     summary: Get property booked periods (for calendar)
