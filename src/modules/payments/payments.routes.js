@@ -45,4 +45,22 @@ router.post('/cancel', auth, paymentController.cancelPayment);
  */
 router.post('/refund', auth, paymentController.requestRefund);
 
+/**
+ * @route   GET /api/v1/m/payments/refund-requests
+ * @desc    Get refund requests (Landlord)
+ * @access  Private
+ */
+router.get('/refund-requests', auth, paymentController.getRefundRequests);
+
+/**
+ * @route   POST /api/v1/m/payments/refund-request/:requestId/process
+ * @desc    Process refund request (Landlord)
+ * @access  Private
+ */
+router.post(
+  '/refund-request/:requestId/process',
+  auth,
+  paymentController.processRefundRequest
+);
+
 module.exports = router;

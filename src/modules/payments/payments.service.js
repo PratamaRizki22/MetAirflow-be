@@ -537,18 +537,206 @@ class PaymentService {
       } else {
         console.log('⏳ Refund requires landlord approval (> 4 hours)');
 
-        // TODO: Create refund request for landlord approval
-        // For now, throw error to inform user
-        throw new AppError(
-          'Refund requests after 4 hours require landlord approval. This feature is coming soon.',
-          400
-        );
+        // Check if pending request already exists
+        const existingRequest = await prisma.refundRequest.findFirst({
+          where: {
+            leaseId: bookingId,
+            status: 'PENDING',
+          },
+        });
+
+        if (existingRequest) {
+          throw new AppError('A pending refund request already exists', 400);
+        }
+
+        // Create refund request
+        const refundRequest = await prisma.refundRequest.create({
+          data: {
+            leaseId: bookingId,
+            requestedBy: userId,
+            landlordId: payment.booking.landlordId,
+            amount: payment.amount,
+            reason: reason || 'Customer requested refund (> 4 hours)',
+            status: 'PENDING',
+          },
+        });
+
+        // TODO: Send notification to landlord
+
+        return {
+          success: true,
+          refundRequestId: refundRequest.id,
+          status: 'pending_approval',
+          message:
+            'Refund request sent to landlord for approval (payment > 4 hours old)',
+          autoRefund: false,
+          requiresApproval: true,
+        };
       }
     } catch (error) {
       console.error('❌ Refund request error:', error);
       if (error instanceof AppError) throw error;
-      throw new AppError('Failed to process refund', 500);
+      throw new AppError('Failed to process refund request', 500);
     }
+  }
+
+  /**
+   * Process refund request (Landlord only)
+   * @param {string} requestId
+   * @param {string} landlordId
+   * @param {boolean} approve
+   * @param {string} notes
+   */
+  async processRefundRequest(requestId, landlordId, approve, notes) {
+    try {
+      console.log('👷 Processing refund request:', {
+        requestId,
+        landlordId,
+        approve,
+      });
+
+      // 1. Get request
+      const refundRequest = await prisma.refundRequest.findUnique({
+        where: { id: requestId },
+        include: {
+          lease: true,
+        },
+      });
+
+      if (!refundRequest) {
+        throw new AppError('Refund request not found', 404);
+      }
+
+      // Verify landlord ownership
+      if (refundRequest.landlordId !== landlordId) {
+        throw new AppError('Unauthorized to process this request', 403);
+      }
+
+      // Verify status
+      if (refundRequest.status !== 'PENDING') {
+        throw new AppError(
+          `Request is already ${refundRequest.status.toLowerCase()}`,
+          400
+        );
+      }
+
+      if (approve) {
+        // Find payment to refund
+        const payment = await prisma.stripePayment.findFirst({
+          where: {
+            bookingId: refundRequest.leaseId,
+            status: 'completed',
+          },
+        });
+
+        if (!payment) {
+          throw new AppError(
+            'Original payment not found or not completed',
+            404
+          );
+        }
+
+        // Process Stripe refund
+        const refund = await stripe.refunds.create({
+          payment_intent: payment.paymentIntentId,
+          reason: 'requested_by_customer',
+          metadata: {
+            bookingId: refundRequest.leaseId,
+            refundRequestId: requestId,
+            approvedBy: landlordId,
+          },
+        });
+
+        // Update StripePayment status
+        await prisma.stripePayment.update({
+          where: { id: payment.id },
+          data: {
+            status: 'refunded',
+            refundedAt: new Date(),
+          },
+        });
+
+        // Update RefundRequest status
+        await prisma.refundRequest.update({
+          where: { id: requestId },
+          data: {
+            status: 'APPROVED',
+            approvedAt: new Date(),
+            landlordNote: notes,
+          },
+        });
+
+        // Update Lease status
+        await prisma.lease.update({
+          where: { id: refundRequest.leaseId },
+          data: {
+            status: 'REFUNDED',
+            paymentStatus: 'refunded',
+            cancelledAt: new Date(),
+            cancellationReason: `Refund approved by landlord: ${notes || ''}`,
+          },
+        });
+
+        // TODO: Notify tenant
+
+        return {
+          success: true,
+          status: 'APPROVED',
+          message: 'Refund approved and processed successfully',
+          refundId: refund.id,
+        };
+      } else {
+        // Reject request
+        await prisma.refundRequest.update({
+          where: { id: requestId },
+          data: {
+            status: 'REJECTED',
+            rejectedAt: new Date(),
+            landlordNote: notes,
+          },
+        });
+
+        // TODO: Notify tenant
+
+        return {
+          success: true,
+          status: 'REJECTED',
+          message: 'Refund request rejected',
+        };
+      }
+    } catch (error) {
+      console.error('❌ Process refund request error:', error);
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to process refund request', 500);
+    }
+  }
+
+  /**
+   * Get refund requests for landlord
+   */
+  async getLandlordRefundRequests(landlordId, status) {
+    const where = { landlordId };
+    if (status) where.status = status;
+
+    return await prisma.refundRequest.findMany({
+      where,
+      include: {
+        lease: {
+          select: {
+            id: true,
+            property: {
+              select: { title: true, address: true },
+            },
+            startDate: true,
+            endDate: true,
+          },
+        },
+        tenant: {
+          select: { name: true, email: true, profilePicture: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   /**

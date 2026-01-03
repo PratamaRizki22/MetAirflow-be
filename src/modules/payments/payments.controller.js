@@ -140,6 +140,51 @@ exports.requestRefund = catchAsync(async (req, res) => {
 });
 
 /**
+ * Process refund request (Landlord)
+ * POST /api/v1/m/payments/refund-request/:requestId/process
+ */
+exports.processRefundRequest = catchAsync(async (req, res) => {
+  const { requestId } = req.params;
+  const { approve, notes } = req.body;
+  const landlordId = req.user.id;
+
+  if (typeof approve !== 'boolean') {
+    throw new AppError('Approval decision (approve: boolean) is required', 400);
+  }
+
+  const result = await paymentService.processRefundRequest(
+    requestId,
+    landlordId,
+    approve,
+    notes
+  );
+
+  res.status(200).json({
+    success: true,
+    data: result,
+  });
+});
+
+/**
+ * Get refund requests (Landlord)
+ * GET /api/v1/m/payments/refund-requests
+ */
+exports.getRefundRequests = catchAsync(async (req, res) => {
+  const landlordId = req.user.id;
+  const { status } = req.query;
+
+  const requests = await paymentService.getLandlordRefundRequests(
+    landlordId,
+    status
+  );
+
+  res.status(200).json({
+    success: true,
+    data: requests,
+  });
+});
+
+/**
  * Handle Stripe webhooks
  * POST /api/v1/webhooks/stripe
  */
