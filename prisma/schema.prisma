@@ -74,6 +74,8 @@ model User {
   propertyFavorites   PropertyFavorite[]   @relation("PropertyFavorites")
   favoriteCollections FavoriteCollection[] @relation("UserCollections")
   reviews             Review[]             @relation("UserReviews")
+  refundRequestsAsTenant   RefundRequest[] @relation("TenantRefundRequests")
+  refundRequestsAsLandlord RefundRequest[] @relation("LandlordRefundRequests")
 
   @@map("users")
 }
@@ -212,6 +214,7 @@ model Lease {
   tenant         User             @relation("TenantLeases", fields: [tenantId], references: [id])
   agreement      RentalAgreement?
   review         Review? // One-to-one relation with Review
+  refundRequests RefundRequest[]
 
   @@index([propertyId, status])
   @@index([tenantId])
@@ -470,4 +473,37 @@ model StripePayment {
   @@index([paymentIntentId])
   @@index([status])
   @@map("stripe_payments")
+}
+
+/// Refund requests that require landlord approval (for payments > 4 hours old)
+model RefundRequest {
+  id           String              @id @default(uuid())
+  leaseId      String
+  requestedBy  String // tenantId
+  landlordId   String
+  reason       String
+  amount       Decimal             @db.Decimal(12, 2)
+  status       RefundRequestStatus @default(PENDING)
+  landlordNote String? // Optional note from landlord when approving/rejecting
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  approvedAt   DateTime?
+  rejectedAt   DateTime?
+
+  lease    Lease @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  tenant   User  @relation("TenantRefundRequests", fields: [requestedBy], references: [id])
+  landlord User  @relation("LandlordRefundRequests", fields: [landlordId], references: [id])
+
+  @@index([leaseId])
+  @@index([requestedBy])
+  @@index([landlordId])
+  @@index([status])
+  @@map("refund_requests")
+}
+
+/// Status for refund requests
+enum RefundRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

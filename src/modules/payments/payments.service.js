@@ -445,9 +445,13 @@ class PaymentService {
 
   /**
    * Request refund for completed payment
+   * - If payment < 4 hours: Auto-refund immediately
+   * - If payment > 4 hours: Require landlord approval (TODO: implement approval flow)
    */
   async requestRefund(bookingId, userId, reason) {
     try {
+      console.log('🔵 Refund request:', { bookingId, userId, reason });
+
       // 1. Find payment
       const payment = await prisma.stripePayment.findFirst({
         where: {
@@ -455,7 +459,11 @@ class PaymentService {
           status: 'completed',
         },
         include: {
-          booking: true,
+          booking: {
+            include: {
+              landlord: true,
+            },
+          },
         },
       });
 
@@ -469,9 +477,11 @@ class PaymentService {
       }
 
       // 2. Check refund eligibility (within 7 days)
-      const daysSincePayment = Math.floor(
-        (new Date() - new Date(payment.completedAt)) / (1000 * 60 * 60 * 24)
+      const hoursSincePayment = Math.floor(
+        (new Date() - new Date(payment.completedAt)) / (1000 * 60 * 60)
       );
+
+      const daysSincePayment = Math.floor(hoursSincePayment / 24);
 
       if (daysSincePayment > 7) {
         throw new AppError(
@@ -480,44 +490,62 @@ class PaymentService {
         );
       }
 
-      // 3. Create refund in Stripe
-      const refund = await stripe.refunds.create({
-        payment_intent: payment.paymentIntentId,
-        reason: 'requested_by_customer',
-        metadata: {
-          bookingId: bookingId,
-          userId: userId,
-          reason: reason || 'Customer requested refund',
-        },
-      });
+      // 3. Check if within 4-hour auto-refund window
+      if (hoursSincePayment < 4) {
+        console.log('⚡ Auto-refund (< 4 hours)');
 
-      // 4. Update payment status
-      await prisma.stripePayment.update({
-        where: { id: payment.id },
-        data: {
+        // Auto-refund immediately
+        const refund = await stripe.refunds.create({
+          payment_intent: payment.paymentIntentId,
+          reason: 'requested_by_customer',
+          metadata: {
+            bookingId: bookingId,
+            userId: userId,
+            reason: reason || 'Customer requested refund within 4 hours',
+            autoRefund: 'true',
+          },
+        });
+
+        // Update payment status
+        await prisma.stripePayment.update({
+          where: { id: payment.id },
+          data: {
+            status: 'refunded',
+            refundedAt: new Date(),
+          },
+        });
+
+        // Update booking status to CANCELLED (not REJECTED)
+        await prisma.lease.update({
+          where: { id: bookingId },
+          data: {
+            status: 'CANCELLED',
+            paymentStatus: 'refunded',
+            cancelledAt: new Date(),
+            cancellationReason: reason || 'Refund requested within 4 hours',
+          },
+        });
+
+        return {
+          refundId: refund.id,
+          amount: refund.amount / 100,
           status: 'refunded',
-          refundedAt: new Date(),
-        },
-      });
+          reason: reason,
+          autoRefund: true,
+          message: 'Refund processed immediately (within 4-hour window)',
+        };
+      } else {
+        console.log('⏳ Refund requires landlord approval (> 4 hours)');
 
-      // 5. Update booking status
-      await prisma.lease.update({
-        where: { id: bookingId },
-        data: {
-          status: 'REJECTED',
-          paymentStatus: 'refunded',
-        },
-      });
-
-      return {
-        refundId: refund.id,
-        amount: refund.amount / 100, // Convert from cents
-        status: refund.status,
-        reason: reason,
-        createdAt: new Date(refund.created * 1000),
-      };
+        // TODO: Create refund request for landlord approval
+        // For now, throw error to inform user
+        throw new AppError(
+          'Refund requests after 4 hours require landlord approval. This feature is coming soon.',
+          400
+        );
+      }
     } catch (error) {
-      console.error('Refund request error:', error);
+      console.error('❌ Refund request error:', error);
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to process refund', 500);
     }
