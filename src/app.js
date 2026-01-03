@@ -307,6 +307,7 @@ const bookingRoutes = require('./modules/bookings/bookings.routes');
 const propertyTypeRoutes = require('./modules/propertyTypes/propertyTypes.routes');
 const amenityRoutes = require('./modules/amenities/amenities.routes');
 const predictionRoutes = require('./modules/predictions/predictions.routes');
+const paymentRoutes = require('./modules/payments/payments.routes');
 
 // Import mobile routes
 const mobileRoutes = require('./routes/mobile');
@@ -320,6 +321,7 @@ app.use('/api/v1/bookings', bookingRoutes);
 app.use('/api/v1/property-types', propertyTypeRoutes);
 app.use('/api/v1/amenities', amenityRoutes);
 app.use('/api/v1/predictions', predictionRoutes);
+app.use('/api/v1/payments', paymentRoutes);
 
 // Use routes (Mobile) - API v1
 app.use('/api/v1/m', mobileRoutes);
