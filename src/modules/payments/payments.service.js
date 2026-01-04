@@ -1170,10 +1170,25 @@ class PaymentService {
       }
 
       // Create account link for onboarding
+      // Priority: 1. URLs from client request (Deep Links for Mobile), 2. Env vars, 3. Fallback
+      const clientReturnUrl = accountInfo.returnUrl;
+      const clientRefreshUrl = accountInfo.refreshUrl;
+
+      const baseUrl = process.env.FRONTEND_URL || 'https://rentverse.com';
+
+      const refreshUrl =
+        clientRefreshUrl || `${baseUrl}/landlord/stripe/refresh`;
+      const returnUrl = clientReturnUrl || `${baseUrl}/landlord/stripe/success`;
+
+      console.log('🔗 Creating Account Link with URLs:', {
+        refreshUrl,
+        returnUrl,
+      });
+
       const accountLink = await stripe.accountLinks.create({
         account: accountId,
-        refresh_url: `${process.env.FRONTEND_URL || 'https://rentverse.com'}/landlord/stripe/refresh`,
-        return_url: `${process.env.FRONTEND_URL || 'https://rentverse.com'}/landlord/stripe/success`,
+        refresh_url: refreshUrl,
+        return_url: returnUrl,
         type: 'account_onboarding',
       });
 
@@ -1183,8 +1198,17 @@ class PaymentService {
         expiresAt: accountLink.expires_at,
       };
     } catch (error) {
-      console.error('Create Connect account error:', error);
-      throw new AppError('Failed to create Stripe Connect account', 500);
+      console.error('❌ FATAL Create Connect account error:', {
+        message: error.message,
+        type: error.type,
+        code: error.code,
+        param: error.param,
+        detail: error.raw ? error.raw.message : 'No raw details',
+      });
+      throw new AppError(
+        'Failed to create Stripe Connect account: ' + error.message,
+        500
+      );
     }
   }
 

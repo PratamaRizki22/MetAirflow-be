@@ -227,11 +227,13 @@ exports.getLandlordPayoutSummary = catchAsync(async (req, res) => {
  */
 exports.createConnectAccount = catchAsync(async (req, res) => {
   const userId = req.user.id;
-  const { email, country } = req.body;
+  const { email, country, returnUrl, refreshUrl } = req.body;
 
   const result = await paymentService.createConnectAccount(userId, {
     email,
     country,
+    returnUrl,
+    refreshUrl,
   });
 
   res.status(200).json({
