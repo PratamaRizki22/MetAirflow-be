@@ -94,8 +94,8 @@ class FileUploadService {
           Key: key,
           Body: file.buffer,
           ContentType: file.mimetype,
-          // Make files publicly readable (optional, adjust based on needs)
-          ACL: 'public-read',
+          // ACL removed: Google Cloud Storage with 'Uniform Bucket-Level Access' does not allow setting ACL per object.
+          // The bucket itself is already public via 'allUsers' role.
         },
       });
 
@@ -209,7 +209,7 @@ class FileUploadService {
         Body: pdfBuffer,
         ContentType: 'application/pdf',
         ContentDisposition: 'inline',
-        ACL: 'public-read',
+        // ACL: 'public-read', // Removed for GCS Uniform Bucket Access compatibility
       });
 
       await s3Client.send(command);
