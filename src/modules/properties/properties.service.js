@@ -507,6 +507,19 @@ class PropertiesService {
 
     for (const field of allowedFields) {
       if (updateData[field] !== undefined) {
+        // Restriction: Only ADMIN can set status to APPROVED or REJECTED
+        if (
+          field === 'status' &&
+          (updateData[field] === 'APPROVED' ||
+            updateData[field] === 'REJECTED') &&
+          requestingUser.role !== 'ADMIN'
+        ) {
+          throw new AppError(
+            'Only admins can approve or reject properties',
+            403
+          );
+        }
+
         if (
           field === 'price' ||
           field === 'areaSqm' ||
