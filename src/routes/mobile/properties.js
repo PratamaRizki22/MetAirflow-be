@@ -235,6 +235,35 @@ router.get('/recently-viewed', auth, async (req, res) => {
   }
 });
 
+// Get pending approvals (Admin only)
+router.get('/admin/pending-approvals', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin only.',
+      });
+    }
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const result = await propertiesService.getPendingApprovals(page, limit);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error('Get pending approvals error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get pending approvals',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
 /**
  * @swagger
  * /api/v1/properties:
