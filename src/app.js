@@ -141,6 +141,11 @@ app.use((req, res, next) => {
 });
 
 app.use(morgan('combined'));
+
+// Webhook routes (MUST be before express.json() to handle raw body)
+const webhookRoutes = require('./routes/webhooks.routes');
+app.use('/api/v1/webhooks', webhookRoutes);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
