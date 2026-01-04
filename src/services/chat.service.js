@@ -33,8 +33,26 @@ class ChatService {
       orderBy: { updatedAt: 'desc' },
       include: {
         property: { select: { title: true } },
-        tenant: { select: { name: true, email: true } },
-        landlord: { select: { name: true, email: true } },
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            profilePicture: true,
+          },
+        },
+        landlord: {
+          select: {
+            id: true,
+            name: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            profilePicture: true,
+          },
+        },
         messages: {
           orderBy: { createdAt: 'desc' },
           take: 1,
@@ -61,8 +79,26 @@ class ChatService {
         },
         include: {
           property: { select: { title: true } },
-          tenant: { select: { name: true, email: true } },
-          landlord: { select: { name: true, email: true } },
+          tenant: {
+            select: {
+              id: true,
+              name: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              profilePicture: true,
+            },
+          },
+          landlord: {
+            select: {
+              id: true,
+              name: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              profilePicture: true,
+            },
+          },
           messages: true,
         },
       });
@@ -79,8 +115,26 @@ class ChatService {
       },
       include: {
         property: { select: { title: true, images: true } },
-        tenant: { select: { name: true, email: true } },
-        landlord: { select: { name: true, email: true } },
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            profilePicture: true,
+          },
+        },
+        landlord: {
+          select: {
+            id: true,
+            name: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            profilePicture: true,
+          },
+        },
         messages: {
           orderBy: { createdAt: 'desc' },
           take: 1,
