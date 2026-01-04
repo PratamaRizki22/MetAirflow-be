@@ -663,9 +663,19 @@ router.post('/google', async (req, res) => {
     const { OAuth2Client } = require('google-auth-library');
     const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+    // Allow tokens issued to Web, Android, or iOS clients
+    const validAudiences = [
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_ANDROID_CLIENT_ID,
+      process.env.GOOGLE_IOS_CLIENT_ID,
+    ].filter(id => id); // Filter out undefined/null/empty string
+
     const ticket = await client.verifyIdToken({
       idToken,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience:
+        validAudiences.length > 0
+          ? validAudiences
+          : process.env.GOOGLE_CLIENT_ID,
     });
 
     const payload = ticket.getPayload();
