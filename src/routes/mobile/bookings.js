@@ -111,8 +111,7 @@ router.get('/admin/all', auth, async (req, res) => {
   }
 });
 
-/**
- * @swaggerrouter.get('/', auth, async (req, res) => {
+router.get('/', auth, async (req, res) => {
   try {
     console.log('🔵 Bookings endpoint hit:', {
       userId: req.user?.id,
