@@ -15,7 +15,7 @@ class UploadController {
 
       const optimize = req.body.optimize !== 'false'; // Default to true
 
-      const result = await fileUploadService.uploadFile(req.file, optimize);
+      const result = await fileUploadService.uploadFile(req.file, 'uploads');
 
       res.status(200).json({
         success: true,
@@ -47,7 +47,7 @@ class UploadController {
 
       const results = await fileUploadService.uploadMultipleFiles(
         req.files,
-        optimize
+        'uploads'
       );
 
       res.status(200).json({
@@ -80,7 +80,7 @@ class UploadController {
 
       const results = await fileUploadService.uploadMultipleFiles(
         req.files,
-        true
+        'properties'
       );
 
       // Create thumbnails for each image
@@ -120,7 +120,7 @@ class UploadController {
       }
 
       // Upload original avatar
-      const avatar = await fileUploadService.uploadFile(req.file, true);
+      const avatar = await fileUploadService.uploadFile(req.file, 'avatars');
 
       // Create thumbnail
       const thumbnail = await fileUploadService.createThumbnail(req.file);

@@ -175,7 +175,7 @@ router.post(
       const fileUploadService = require('../../utils/fileUpload');
       const { prisma } = require('../../config/database');
 
-      const result = await fileUploadService.uploadFile(req.file, true);
+      const result = await fileUploadService.uploadFile(req.file, 'avatars');
 
       // Update user's profile picture
       const user = await prisma.user.update({
