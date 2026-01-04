@@ -31,7 +31,14 @@ if (isS3Configured) {
         process.env.AWS_USE_PATH_STYLE_ENDPOINT === 'true';
 
       // Base URL for MinIO/custom endpoint
-      s3Config.baseUrl = process.env.AWS_URL || process.env.AWS_ENDPOINT;
+      if (process.env.AWS_URL) {
+        s3Config.baseUrl = process.env.AWS_URL;
+      } else if (process.env.AWS_USE_PATH_STYLE_ENDPOINT === 'true') {
+        // For path-style (GCS, MinIO), append bucket to endpoint if AWS_URL not provided
+        s3Config.baseUrl = `${process.env.AWS_ENDPOINT}/${s3Config.bucket}`;
+      } else {
+        s3Config.baseUrl = process.env.AWS_ENDPOINT;
+      }
     } else {
       // Standard AWS S3 URL
       s3Config.baseUrl = `https://${s3Config.bucket}.s3.${s3Config.region}.amazonaws.com`;
