@@ -400,6 +400,7 @@ model spatial_ref_sys {
 enum Role {
   USER
   ADMIN
+  LANDLORD
 }
 
 /// Status listing untuk alur publikasi/approval.
