@@ -653,6 +653,11 @@ router.get('/', optionalAuth, async (req, res) => {
               amenity: true,
             },
           },
+          ratings: {
+            select: {
+              rating: true,
+            },
+          },
           _count: {
             select: {
               ratings: true,
@@ -667,14 +672,25 @@ router.get('/', optionalAuth, async (req, res) => {
       prisma.property.count({ where }),
     ]);
 
+    // Calculate average ratings
+    const propertiesWithRatings = properties.map(p => {
+      const avgRating =
+        p.ratings && p.ratings.length > 0
+          ? p.ratings.reduce((sum, r) => sum + r.rating, 0) / p.ratings.length
+          : 0;
+      // remove ratings array from response to keep payload clean
+      const { ratings, ...rest } = p;
+      return { ...rest, averageRating: avgRating };
+    });
+
     // Calculate distance if coordinates provided
-    let propertiesWithDistance = properties;
+    let propertiesWithDistance = propertiesWithRatings;
     if (latitude && longitude) {
       const lat = parseFloat(latitude);
       const lng = parseFloat(longitude);
       const rad = parseFloat(radius) || 50; // Default 50km radius
 
-      propertiesWithDistance = properties
+      propertiesWithDistance = propertiesWithRatings
         .map(property => {
           if (property.latitude && property.longitude) {
             const distance = calculateDistance(
@@ -1277,6 +1293,11 @@ router.get('/nearby', optionalAuth, async (req, res) => {
             profilePicture: true,
           },
         },
+        ratings: {
+          select: {
+            rating: true,
+          },
+        },
       },
     });
 
@@ -1289,9 +1310,19 @@ router.get('/nearby', optionalAuth, async (req, res) => {
           property.latitude,
           property.longitude
         );
+        const avgRating =
+          property.ratings && property.ratings.length > 0
+            ? property.ratings.reduce((sum, r) => sum + r.rating, 0) /
+              property.ratings.length
+            : 0;
+
+        // remove ratings array from response
+        const { ratings, ...rest } = property;
+
         return {
-          ...property,
+          ...rest,
           distance: Math.round(distance * 100) / 100,
+          averageRating: avgRating,
           mapsUrl: `https://www.google.com/maps?q=${property.latitude},${property.longitude}`,
         };
       })
