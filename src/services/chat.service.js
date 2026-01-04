@@ -15,20 +15,22 @@ class ChatService {
     }
 
     const landlordId = property.ownerId;
+    console.log(
+      `[UnifiedChat] Lookup conversation for Tenant: ${tenantId} and Landlord: ${landlordId}`
+    );
 
     // Prevent self-conversation
     if (tenantId === landlordId) {
       throw new Error('Cannot create conversation with yourself');
     }
 
-    // Find existing conversation or create new one
-    let conversation = await prisma.conversation.findUnique({
+    // Find existing conversation (Unified Chat: find ANY conversation between tenant and landlord)
+    let conversation = await prisma.conversation.findFirst({
       where: {
-        propertyId_tenantId: {
-          propertyId,
-          tenantId,
-        },
+        tenantId,
+        landlordId,
       },
+      orderBy: { updatedAt: 'desc' },
       include: {
         property: { select: { title: true } },
         tenant: { select: { name: true, email: true } },
@@ -39,6 +41,16 @@ class ChatService {
         },
       },
     });
+
+    if (conversation) {
+      console.log(
+        `[UnifiedChat] Found existing conversation: ${conversation.id}`
+      );
+    } else {
+      console.log(
+        `[UnifiedChat] No existing conversation found. Creating new one.`
+      );
+    }
 
     if (!conversation) {
       conversation = await prisma.conversation.create({
