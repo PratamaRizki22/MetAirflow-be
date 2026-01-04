@@ -330,6 +330,10 @@ app.use('/api/v1/refunds', refundRoutes);
 // Use routes (Mobile) - API v1
 app.use('/api/v1/m', mobileRoutes);
 
+// Stripe Connect redirect routes (for post-onboarding redirects)
+const stripeConnectRedirectRoutes = require('./routes/stripe-connect-redirect');
+app.use('/stripe-connect', stripeConnectRedirectRoutes);
+
 /**
  * @swagger
  * /:
