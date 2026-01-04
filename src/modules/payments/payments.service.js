@@ -263,7 +263,7 @@ class PaymentService {
       await prisma.lease.update({
         where: { id: bookingId },
         data: {
-          status: 'APPROVED',
+          status: 'PAID',
           paymentStatus: 'paid',
         },
       });
@@ -837,7 +837,7 @@ class PaymentService {
       await prisma.lease.update({
         where: { id: payment.bookingId },
         data: {
-          status: 'APPROVED',
+          status: 'PAID',
           paymentStatus: 'paid',
         },
       });

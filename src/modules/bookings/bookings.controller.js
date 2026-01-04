@@ -180,6 +180,38 @@ class BookingsController {
   }
 
   /**
+   * Get all bookings (for Admin)
+   */
+  async getAllBookings(req, res) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const status = req.query.status;
+
+      // Check if user is admin
+      if (req.user.role !== 'ADMIN') {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: Admin only',
+        });
+      }
+
+      const result = await bookingsService.getAllBookings(page, limit, status);
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      console.error('Get all bookings error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  }
+
+  /**
    * Get booking by ID
    */
   async getBookingById(req, res) {
@@ -229,6 +261,7 @@ class BookingsController {
       const booking = await bookingsService.approveBooking(
         bookingId,
         req.user.id,
+        req.user.role,
         notes
       );
 
