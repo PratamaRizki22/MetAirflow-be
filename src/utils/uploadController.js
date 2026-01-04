@@ -53,7 +53,9 @@ class UploadController {
       res.status(200).json({
         success: true,
         message: `${results.length} files uploaded successfully`,
-        data: results,
+        data: {
+          files: results, // ✅ Wrapped to match frontend expectation
+        },
       });
     } catch (error) {
       console.error('Upload multiple files error:', error);
