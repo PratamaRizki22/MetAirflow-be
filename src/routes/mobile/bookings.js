@@ -718,15 +718,16 @@ router.post('/:id/approve', auth, async (req, res) => {
       });
     }
 
-    // Only landlord can approve
-    if (booking.landlordId !== req.user.id) {
+    // Allow Landlord OR Admin to approve
+    if (booking.landlordId !== req.user.id && req.user.role !== 'ADMIN') {
       return res.status(403).json({
         success: false,
-        message: 'Only property owner can approve bookings',
+        message: 'Only property owner or admin can approve bookings',
       });
     }
 
-    if (booking.status !== 'PENDING') {
+    // Allow approving PENDING or PAID bookings
+    if (!['PENDING', 'PAID'].includes(booking.status)) {
       return res.status(400).json({
         success: false,
         message: `Cannot approve booking with status: ${booking.status}`,
@@ -822,15 +823,16 @@ router.post('/:id/reject', auth, async (req, res) => {
       });
     }
 
-    // Only landlord can reject
-    if (booking.landlordId !== req.user.id) {
+    // Allow Landlord OR Admin to reject
+    if (booking.landlordId !== req.user.id && req.user.role !== 'ADMIN') {
       return res.status(403).json({
         success: false,
-        message: 'Only property owner can reject bookings',
+        message: 'Only property owner or admin can reject bookings',
       });
     }
 
-    if (booking.status !== 'PENDING') {
+    // Allow rejecting PENDING or PAID bookings
+    if (!['PENDING', 'PAID'].includes(booking.status)) {
       return res.status(400).json({
         success: false,
         message: `Cannot reject booking with status: ${booking.status}`,
