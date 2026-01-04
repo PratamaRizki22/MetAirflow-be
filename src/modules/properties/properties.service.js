@@ -252,13 +252,13 @@ class PropertiesService {
   }
 
   async createProperty(propertyData, ownerId) {
-    // Validate mandatory PDFs
-    if (!propertyData.agreementPdfUrl || !propertyData.houseRulesPdfUrl) {
-      throw new AppError(
-        'Rental agreement PDF and house rules PDF are required',
-        400
-      );
-    }
+    // Validate mandatory PDFs (Made optional per user request)
+    // if (!propertyData.agreementPdfUrl || !propertyData.houseRulesPdfUrl) {
+    //   throw new AppError(
+    //     'Rental agreement PDF and house rules PDF are required',
+    //     400
+    //   );
+    // }
 
     // Validate PDF format (simple check for .pdf extension or pdf mimetype)
     const isPdfUrl = url => {
@@ -271,11 +271,17 @@ class PropertiesService {
       );
     };
 
-    if (!isPdfUrl(propertyData.agreementPdfUrl)) {
+    if (
+      propertyData.agreementPdfUrl &&
+      !isPdfUrl(propertyData.agreementPdfUrl)
+    ) {
       throw new AppError('Rental agreement must be a PDF file', 400);
     }
 
-    if (!isPdfUrl(propertyData.houseRulesPdfUrl)) {
+    if (
+      propertyData.houseRulesPdfUrl &&
+      !isPdfUrl(propertyData.houseRulesPdfUrl)
+    ) {
       throw new AppError('House rules must be a PDF file', 400);
     }
 
