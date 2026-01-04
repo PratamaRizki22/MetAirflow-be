@@ -292,8 +292,10 @@ class PropertiesService {
 
     // 🆕 Check auto-approve status
     const PropertiesController = require('./properties.controller');
-    const autoApproveStatus =
-      PropertiesController.constructor.getAutoApproveStatus();
+    // Force enable auto-approve for debugging
+    const autoApproveStatus = { isEnabled: true };
+    // const autoApproveStatus =
+    //   PropertiesController.constructor.getAutoApproveStatus();
 
     console.log('🔍 Property auto-approve status:', autoApproveStatus);
 

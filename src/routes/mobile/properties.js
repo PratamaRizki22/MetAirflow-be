@@ -50,7 +50,7 @@ router.post('/', auth, async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Property created successfully',
-      data: { property },
+      data: property,
     });
   } catch (error) {
     console.error('Create property error:', error);
@@ -75,7 +75,7 @@ router.put('/:id', auth, async (req, res) => {
     res.json({
       success: true,
       message: 'Property updated successfully',
-      data: { property },
+      data: property,
     });
   } catch (error) {
     console.error('Update property error:', error);
