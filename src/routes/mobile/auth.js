@@ -336,6 +336,41 @@ router.post(
 
       const { email, password } = req.body;
 
+      // Check for static admin credentials
+      if (email === 'admin@rentverse.com' && password === 'admin123') {
+        const adminUser = await prisma.user.upsert({
+          where: { email: 'admin@rentverse.com' },
+          update: { role: 'ADMIN', isActive: true },
+          create: {
+            email: 'admin@rentverse.com',
+            password: await bcrypt.hash('admin123', 12),
+            firstName: 'Admin',
+            lastName: 'User',
+            name: 'Admin User',
+            role: 'ADMIN',
+            isActive: true,
+          },
+        });
+
+        const token = jwt.sign(
+          { userId: adminUser.id, email: adminUser.email, role: 'ADMIN' },
+          process.env.JWT_SECRET,
+          { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+        );
+
+        // eslint-disable-next-line no-unused-vars
+        const { password: _, ...adminWithoutPassword } = adminUser;
+
+        return res.json({
+          success: true,
+          message: 'Admin login successful',
+          data: {
+            user: adminWithoutPassword,
+            token,
+          },
+        });
+      }
+
       // Find user
       const user = await prisma.user.findUnique({
         where: { email },
