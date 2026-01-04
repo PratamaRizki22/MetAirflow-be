@@ -1136,13 +1136,15 @@ class PropertiesService {
       throw new Error('Property not found');
     }
 
-    // Validate mandatory PDFs before approval
+    // Validate mandatory PDFs before approval - OPTIONAL now
+    /*
     if (!property.agreementPdfUrl || !property.houseRulesPdfUrl) {
       throw new AppError(
         'Cannot approve property: Rental agreement PDF and house rules PDF are required',
         400
       );
     }
+    */
 
     console.log('✅ Property has required PDFs:', {
       propertyId,
