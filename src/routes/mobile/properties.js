@@ -15,7 +15,27 @@ const router = express.Router();
 // Create property (Landlord/Admin only)
 router.post('/', auth, async (req, res) => {
   try {
-    if (req.user.role !== 'LANDLORD' && req.user.role !== 'ADMIN') {
+    // Auto-promote USER to LANDLORD if they are creating their first property
+    if (req.user.role === 'USER') {
+      try {
+        await prisma.user.update({
+          where: { id: req.user.id },
+          data: { role: 'LANDLORD' },
+        });
+        // Update local user object so downstream logic sees the new role
+        req.user.role = 'LANDLORD';
+        console.log(`✅ Auto-promoted user ${req.user.id} to LANDLORD`);
+      } catch (err) {
+        console.error('Failed to auto-promote user:', err);
+        // Continue anyway? Or fail?
+        // Failing is safer to ensure consistency
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to upgrade user role to Landlord',
+        });
+      }
+    } else if (req.user.role !== 'LANDLORD' && req.user.role !== 'ADMIN') {
+      // If they are some other role (e.g. GUEST?), block them
       return res.status(403).json({
         success: false,
         message: 'Only landlords and admins can create properties',
