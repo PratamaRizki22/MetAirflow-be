@@ -48,7 +48,71 @@ const router = express.Router();
  *       401:
  *         description: Unauthorized
  */
-router.get('/', auth, async (req, res) => {
+router.get('/admin/all', auth, async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin only.',
+      });
+    }
+
+    const { status } = req.query;
+    const limit = parseInt(req.query.limit) || 50;
+
+    const where = {};
+    if (status) where.status = status;
+
+    const bookings = await prisma.lease.findMany({
+      where,
+      include: {
+        property: {
+          select: {
+            id: true,
+            title: true,
+            city: true,
+            currencyCode: true,
+          },
+        },
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            profilePicture: true,
+          },
+        },
+        landlord: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            profilePicture: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        bookings,
+      },
+    });
+  } catch (error) {
+    console.error('Admin get bookings error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch admin bookings',
+    });
+  }
+});
+
+/**
+ * @swaggerrouter.get('/', auth, async (req, res) => {
   try {
     console.log('🔵 Bookings endpoint hit:', {
       userId: req.user?.id,
