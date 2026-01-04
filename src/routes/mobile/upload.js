@@ -73,7 +73,7 @@ const router = express.Router();
  *       401:
  *         description: Unauthorized
  */
-router.post('/single', auth, uploadSingle, handleUploadError, (req, res) =>
+router.post('/single', auth, uploadSingle(), handleUploadError, (req, res) =>
   uploadController.uploadSingle(req, res)
 );
 
@@ -124,8 +124,12 @@ router.post('/single', auth, uploadSingle, handleUploadError, (req, res) =>
  *       401:
  *         description: Unauthorized
  */
-router.post('/multiple', auth, uploadMultiple, handleUploadError, (req, res) =>
-  uploadController.uploadMultiple(req, res)
+router.post(
+  '/multiple',
+  auth,
+  uploadMultiple(),
+  handleUploadError,
+  (req, res) => uploadController.uploadMultiple(req, res)
 );
 
 /**
@@ -157,7 +161,7 @@ router.post('/multiple', auth, uploadMultiple, handleUploadError, (req, res) =>
 router.post(
   '/profile-picture',
   auth,
-  uploadSingle,
+  uploadSingle(),
   handleUploadError,
   async (req, res) => {
     try {
