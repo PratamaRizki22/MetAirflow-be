@@ -92,6 +92,65 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
+// Approve property (Admin only)
+router.put('/:id/approve', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Signature: approveProperty(propertyId, reviewerId, notes)
+    const property = await propertiesService.approveProperty(id, req.user.id);
+
+    res.json({
+      success: true,
+      message: 'Property approved successfully',
+      data: { property },
+    });
+  } catch (error) {
+    console.error('Approve property error:', error);
+    const status = error.message.includes('not found')
+      ? 404
+      : error.message.includes('Access denied')
+        ? 403
+        : 500;
+    res.status(status).json({
+      success: false,
+      message: error.message || 'Failed to approve property',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+// Reject property (Admin only)
+router.put('/:id/reject', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    // Signature: rejectProperty(propertyId, reviewerId, notes)
+    const property = await propertiesService.rejectProperty(
+      id,
+      req.user.id,
+      reason
+    );
+
+    res.json({
+      success: true,
+      message: 'Property rejected successfully',
+      data: { property },
+    });
+  } catch (error) {
+    console.error('Reject property error:', error);
+    const status = error.message.includes('not found')
+      ? 404
+      : error.message.includes('Access denied')
+        ? 403
+        : 500;
+    res.status(status).json({
+      success: false,
+      message: error.message || 'Failed to reject property',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
 // Delete property (Landlord/Admin only)
 router.delete('/:id', auth, async (req, res) => {
   try {
@@ -171,6 +230,35 @@ router.get('/recently-viewed', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to get recently viewed properties',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+// Get pending approvals (Admin only)
+router.get('/admin/pending-approvals', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin only.',
+      });
+    }
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const result = await propertiesService.getPendingApprovals(page, limit);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error('Get pending approvals error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get pending approvals',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
