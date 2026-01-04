@@ -13,7 +13,7 @@ Backend service untuk RentVerse yang menangani logika bisnis utama, manajemen da
 - **Dokumentasi API:** Swagger UI
 - **Storage:** AWS S3 Compatible Strategy (MinIO/S3)
 - **Real-time:** Socket.io
-- **Testing:** Jest
+- **Containerization:** Docker & Docker Compose
 
 ## 🔑 Fitur Dasar
 
@@ -28,13 +28,15 @@ Backend service untuk RentVerse yang menangani logika bisnis utama, manajemen da
 
 ## 🚀 Cara Menjalankan
 
-### Prasyarat
+### Opsi 1: Menggunakan Docker (Direkomendasikan)
 
-- Node.js (v18+)
-- PostgreSQL Database
-- pnpm (Recommended) atau npm
+Cara termudah untuk menjalankan seluruh stack (Backend, Database, Caddy, Prisma Studio) adalah menggunakan Docker Compose.
 
-### Instalasi & Setup
+**Prasyarat:**
+
+- Docker & Docker Compose terinstall.
+
+**Langkah:**
 
 1. **Masuk ke direktori backend:**
 
@@ -42,70 +44,70 @@ Backend service untuk RentVerse yang menangani logika bisnis utama, manajemen da
    cd rentverse-core-service
    ```
 
-2. **Install dependencies:**
-
-   ```bash
-   pnpm install
-   ```
-
-   _(Jika belum punya pnpm: `npm install -g pnpm`)_
-
-3. **Konfigurasi Environment:**
+2. **Setup Environment:**
    Salin `.env.example` ke `.env`.
 
    ```bash
    cp .env.example .env
    ```
 
-   **Wajib diisi:**
-   - `DATABASE_URL`: Connection string PostgreSQL.
-   - `JWT_SECRET`: Secret key untuk token.
-   - `STRIPE_SECRET_KEY`: Private key dari dashboard Stripe.
-   - `AWS_*`: Konfigurasi S3/MinIO untuk upload gambar.
+   _Catatan: Pastikan `DATABASE_URL` di env file sesuai dengan config docker-compose jika ingin mengubahnya (default sudah terkonfigurasi untuk service `db`)._
 
-4. **Setup Database:**
+3. **Jalankan Container:**
 
    ```bash
-   pnpm run db:generate   # Generate Prisma Client
-   pnpm run db:migrate    # Jalankan migrasi database
-   pnpm run db:seed       # (Opsional) Isi data awal/dummy
+   docker-compose up -d --build
    ```
 
-5. **Jalankan Server (Development):**
+4. **Akses Layanan:**
+   - **API:** `http://localhost:3000`
+   - **Swagger Docs:** `http://localhost:3000/api-docs`
+   - **Prisma Studio (DB GUI):** `http://localhost:5555`
+   - **Caddy (Reverse Proxy):** `http://localhost` (Port 80/443)
+
+### Opsi 2: Manual (Tanpa Docker)
+
+**Prasyarat:**
+
+- Node.js (v18+)
+- PostgreSQL Database (running local)
+- pnpm (Recommended) atau npm
+
+**Langkah:**
+
+1. **Install dependencies:**
+
+   ```bash
+   pnpm install
+   ```
+
+2. **Konfigurasi Environment:**
+   Update `.env` dengan kredensial database lokal Anda.
+
+3. **Setup Database:**
+
+   ```bash
+   pnpm run db:generate
+   pnpm run db:migrate
+   pnpm run db:seed
+   ```
+
+4. **Jalankan Server:**
    ```bash
    pnpm run dev
    ```
-   Server akan berjalan di `http://localhost:3000`.
-
-### Dokumentasi API (Swagger)
-
-Setelah server berjalan, dokumentasi lengkap API tersedia di:
-👉 **http://localhost:3000/api-docs**
 
 ## 📁 Struktur Direktori
 
 ```
 rentverse-core-service/
-├── src/
-│   ├── config/             # Konfigurasi env & library
-│   ├── constants/          # Konstanta global
-│   ├── middleware/         # Auth, Error handling, Validation middleware
-│   ├── modules/            # Modular architecture (Controller, Service, Repository)
-│   │   ├── auth/
-│   │   ├── bookings/
-│   │   ├── payments/
-│   │   ├── properties/
-│   │   └── users/
-│   ├── routes/             # Route definitions
-│   ├── utils/              # Helper functions
-│   └── app.js              # Express app setup
-├── prisma/
-│   ├── schema.prisma       # Skema Database
-│   ├── migrations/         # File migrasi SQL
-│   └── seeders/            # Data seeding script
-├── scripts/                # Utility scripts
-├── tests/                  # Unit & Integration tests
-└── index.js                # Entry point server
+├── src/                  # Source code utama
+├── prisma/               # Database schema & migrations
+├── scripts/              # Utility scripts
+├── tests/                # Unit & Integration tests
+├── Dockerfile            # Config Docker image
+├── docker-compose.yml    # Config multi-container orchestration
+└── index.js              # Entry point server
 ```
 
 ## 🧪 Testing
@@ -116,12 +118,6 @@ Jalankan unit dan integration test:
 pnpm test
 ```
 
-Untuk melihat coverage code:
-
-```bash
-pnpm test:coverage
-```
-
 ## 💳 Integrasi Stripe
 
 Backend ini menangani full cycle pembayaran:
@@ -130,7 +126,7 @@ Backend ini menangani full cycle pembayaran:
 2. **Webhook Handler:** Menerima notifikasi dari Stripe saat pembayaran sukses/gagal.
 3. **Connect Accounts:** Onboarding landlord untuk menerima pembayaran (sub-merchant).
 
-Pastikan Stripe Webhook CLI berjalan saat development lokal untuk mengetes webhook:
+Untuk mengetes webhook lokal:
 
 ```bash
 stripe listen --forward-to localhost:3000/api/v1/payments/webhook
