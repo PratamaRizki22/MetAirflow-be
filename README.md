@@ -1,61 +1,137 @@
-# 🐳 Rentverse Backend - Docker Development Guide
+# RentVerse Backend Service
 
-Panduan singkat untuk menjalankan aplikasi backend ini menggunakan Docker.
+Backend service untuk RentVerse yang menangani logika bisnis utama, manajemen database, otentikasi, dan integrasi pembayaran.
 
-## 📋 Prasyarat
+## ⚙️ Teknologi Utama
 
-- **Docker Desktop** atau **Docker Engine**
-- **Docker Compose**
+- **Runtime:** Node.js
+- **Framework:** Express.js
+- **Database:** PostgreSQL
+- **ORM:** Prisma
+- **Auth:** JWT & Passport (OAuth)
+- **Pembayaran:** Stripe API
+- **Dokumentasi API:** Swagger UI
+- **Storage:** AWS S3 Compatible Strategy (MinIO/S3)
+- **Real-time:** Socket.io
+- **Containerization:** Docker & Docker Compose
 
-## 🚀 Cara Menjalankan (Development)
+## 🔑 Fitur Dasar
 
-### 1. Persiapan Environment
+- **Otentikasi User:** Register, Login, Refresh Token, Google OAuth.
+- **Manajemen User:** Profil, role (Tenant/Landlord/Admin).
+- **Properti:** CRUD properti, pencarian, filter, upload gambar.
+- **Booking:** Booking flow, validasi tanggal, kalkulasi harga.
+- **Pembayaran:** Payment Intent, Webhook handler, Refund, Payouts.
+- **Review & Rating:** Sistem ulasan untuk properti.
+- **Chat:** API untuk menyimpan dan mengambil riwayat chat.
+- **Notifikasi:** Email notifications (Nodemailer).
 
-Salin file environment template:
+## 🚀 Cara Menjalankan
 
-```bash
-cp .env.example .env
+### Opsi 1: Menggunakan Docker (Direkomendasikan)
+
+Cara termudah untuk menjalankan seluruh stack (Backend, Database, Caddy, Prisma Studio) adalah menggunakan Docker Compose.
+
+**Prasyarat:**
+
+- Docker & Docker Compose terinstall.
+
+**Langkah:**
+
+1. **Masuk ke direktori backend:**
+
+   ```bash
+   cd rentverse-core-service
+   ```
+
+2. **Setup Environment:**
+   Salin `.env.example` ke `.env`.
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   _Catatan: Pastikan `DATABASE_URL` di env file sesuai dengan config docker-compose jika ingin mengubahnya (default sudah terkonfigurasi untuk service `db`)._
+
+3. **Jalankan Container:**
+
+   ```bash
+   docker-compose up -d --build
+   ```
+
+4. **Akses Layanan:**
+   - **API:** `http://localhost:3000`
+   - **Swagger Docs:** `http://localhost:3000/api-docs`
+   - **Prisma Studio (DB GUI):** `http://localhost:5555`
+   - **Caddy (Reverse Proxy):** `http://localhost` (Port 80/443)
+
+### Opsi 2: Manual (Tanpa Docker)
+
+**Prasyarat:**
+
+- Node.js (v18+)
+- PostgreSQL Database (running local)
+- pnpm (Recommended) atau npm
+
+**Langkah:**
+
+1. **Install dependencies:**
+
+   ```bash
+   pnpm install
+   ```
+
+2. **Konfigurasi Environment:**
+   Update `.env` dengan kredensial database lokal Anda.
+
+3. **Setup Database:**
+
+   ```bash
+   pnpm run db:generate
+   pnpm run db:migrate
+   pnpm run db:seed
+   ```
+
+4. **Jalankan Server:**
+   ```bash
+   pnpm run dev
+   ```
+
+## 📁 Struktur Direktori
+
+```
+rentverse-core-service/
+├── src/                  # Source code utama
+├── prisma/               # Database schema & migrations
+├── scripts/              # Utility scripts
+├── tests/                # Unit & Integration tests
+├── Dockerfile            # Config Docker image
+├── docker-compose.yml    # Config multi-container orchestration
+└── index.js              # Entry point server
 ```
 
-> **Catatan:** Anda **TIDAK PERLU** mengubah `DATABASE_URL` di dalam folder `.env`. Konfigurasi Docker Compose akan otomatis mengaturnya agar terhubung ke database internal container.
+## 🧪 Testing
 
-### 2. Persiapan Database (PostgreSQL + PostGIS)
-
-Aplikasi ini membutuhkan PostgreSQL dengan ekstensi **PostGIS**.
-
-Kami telah menyiapkan service database otomatis di dalam `docker-compose.yml` yang menggunakan image `postgis/postgis:15-3.4-alpine`.
-
-**Apa yang terjadi secara otomatis:**
-
-- Container database (`rentverse-db`) akan dibuat.
-- Extension PostGIS akan diaktifkan.
-- Schema database akan di-push otomatis oleh Prisma saat container aplikasi berjalan.
-
-### 3. Jalankan Aplikasi
-
-Jalankan perintah berikut untuk membangun dan menyalakan semua service:
+Jalankan unit dan integration test:
 
 ```bash
-docker-compose up -d --build
+pnpm test
 ```
 
-Proses ini akan menjalankan:
+## 💳 Integrasi Stripe
 
-1.  🐘 **Database**: PostgreSQL dengan PostGIS port `5432` (internal)
-2.  📱 **Backend API**: Node.js server port `3000`
-3.  � **Prisma Studio**: Database GUI port `5555`
-4.  �🔄 **Proxy**: Caddy server (opsional)
+Backend ini menangani full cycle pembayaran:
 
-### 4. Verifikasi
+1. **Create Payment Intent:** Saat user checkout di mobile app.
+2. **Webhook Handler:** Menerima notifikasi dari Stripe saat pembayaran sukses/gagal.
+3. **Connect Accounts:** Onboarding landlord untuk menerima pembayaran (sub-merchant).
 
-Setelah semua container berjalan (status `healthy`):
-
-- **API Health Check**: [http://localhost:3000/health](http://localhost:3000/health)
-- **Dokumentasi API (Swagger)**: [http://localhost:3000/docs](http://localhost:3000/docs)
-- **Database GUI (Prisma Studio)**: [http://localhost:5555](http://localhost:5555)
-
-### 🖐️ Menghentikan Aplikasi
+Untuk mengetes webhook lokal:
 
 ```bash
-docker-compose down
+stripe listen --forward-to localhost:3000/api/v1/payments/webhook
 ```
+
+---
+
+Happy Coding! 🚀
