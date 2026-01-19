@@ -1,5 +1,6 @@
 const { prisma } = require('../../config/database');
 const pdfGenerationService = require('../../services/pdfGeneration.service');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 class BookingsService {
   /**
@@ -726,17 +727,65 @@ class BookingsService {
       );
     }
 
-    // Check if booking is in PENDING status
-    if (booking.status !== 'PENDING') {
-      throw new Error('Only PENDING bookings can be rejected');
+    // Check if booking is in PENDING or PAID status
+    if (!['PENDING', 'PAID'].includes(booking.status)) {
+      throw new Error('Only PENDING or PAID bookings can be rejected/refunded');
+    }
+
+    let newStatus = 'REJECTED';
+    let newPaymentStatus = booking.paymentStatus;
+
+    // Handle Refund for PAID bookings
+    if (booking.status === 'PAID') {
+      console.log(`Processing refund for booking ${bookingId}`);
+
+      // Fetch booking with completed payments
+      const bookingWithPayments = await prisma.lease.findUnique({
+        where: { id: bookingId },
+        include: {
+          stripePayments: {
+            where: { status: 'completed' },
+          },
+        },
+      });
+
+      // Get the payment intent
+      const payment = bookingWithPayments.stripePayments?.[0];
+
+      if (payment && payment.paymentIntentId) {
+        try {
+          await stripe.refunds.create({
+            payment_intent: payment.paymentIntentId,
+            reason: 'requested_by_customer',
+          });
+          newStatus = 'REFUNDED';
+          newPaymentStatus = 'refunded';
+          console.log('✅ Refund processed successfully via Stripe');
+        } catch (stripeError) {
+          console.error('❌ Stripe refund failed:', stripeError);
+          // throw new Error(`Refund failed: ${stripeError.message}`);
+          // Should we fail or just mark as REFUNDED in DB manually?
+          // Let's fail hard so landlord knows refund didn't work
+          throw new Error(`Refund failed: ${stripeError.message}`);
+        }
+      } else {
+        // If PAID but no stripe record found
+        console.warn(
+          '⚠️ No Stripe payment record found for PAID booking. Marking as refunded without Stripe call.'
+        );
+        newStatus = 'REFUNDED';
+        newPaymentStatus = 'refunded';
+      }
     }
 
     // Reject the booking
     const rejectedBooking = await prisma.lease.update({
       where: { id: bookingId },
       data: {
-        status: 'REJECTED',
-        notes: `${booking.notes || ''}\n\nRejection reason: ${reason}`.trim(),
+        status: newStatus,
+        paymentStatus: newPaymentStatus,
+        notes:
+          `${booking.notes || ''}\n\nRejection/Refund reason: ${reason}`.trim(),
         updatedAt: new Date(),
       },
       include: {
